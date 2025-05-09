@@ -146,6 +146,17 @@ export const api = {
   logout: async (): Promise<void> => {
     localStorage.removeItem('currentUser');
   },
+
+  updateUserRole: async (userId: string, newRole: 'Seller' | 'Buyer'): Promise<void> => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const user = mockUsers.find(u => u.id === userId);
+    if (user) {
+      user.role = newRole;
+      localStorage.setItem('currentUser', JSON.stringify(user));
+    }
+  },
   
   // Project functions
   getProjects: async (filters?: { tag?: string; minPrice?: number; maxPrice?: number }): Promise<Project[]> => {
