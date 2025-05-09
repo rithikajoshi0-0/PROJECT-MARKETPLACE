@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, ShoppingBag, Store, LogOut, User as UserIcon, RefreshCw, Briefcase, GraduationCap, Settings } from 'lucide-react';
+import { Menu, X, Store, LogOut, User as UserIcon, RefreshCw, Briefcase, GraduationCap, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import RiseLogo from './RiseLogo';
 
 const Header: React.FC = () => {
   const { user, logout, switchRole } = useAuth();
@@ -38,8 +39,7 @@ const Header: React.FC = () => {
           <div className="flex justify-between h-16 items-center">
             <div className="flex-shrink-0 flex items-center">
               <Link to="/" className="flex items-center gap-2">
-                <ShoppingBag className="h-8 w-8 text-primary-500" />
-                <span className="text-xl font-bold text-gray-900">ProjectMarket</span>
+                <RiseLogo />
               </Link>
             </div>
             
