@@ -7,6 +7,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User | null>;
   signup: (name: string, email: string, role: 'Seller' | 'Buyer', password: string) => Promise<User | null>;
   logout: () => Promise<void>;
+  switchRole: (newRole: 'Seller' | 'Buyer') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,8 +40,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const switchRole = async (newRole: 'Seller' | 'Buyer') => {
+    if (!user) return;
+    const updatedUser = { ...user, role: newRole };
+    await api.updateUserRole(user.id, newRole);
+    setUser(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, switchRole }}>
       {children}
     </AuthContext.Provider>
   );
