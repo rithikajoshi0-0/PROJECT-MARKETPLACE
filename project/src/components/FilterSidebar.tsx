@@ -1,22 +1,29 @@
 import React, { useState } from 'react';
-import { Tag, DollarSign, X } from 'lucide-react';
+import { Tag, DollarSign, X, Laptop, GraduationCap } from 'lucide-react';
+import { Domain, domains } from '../lib/supabase';
 
 interface FilterSidebarProps {
   onApplyFilters: (filters: {
     tag?: string;
     minPrice?: number;
     maxPrice?: number;
+    domain?: string;
   }) => void;
   availableTags: string[];
 }
 
 const FilterSidebar: React.FC<FilterSidebarProps> = ({ onApplyFilters, availableTags }) => {
   const [selectedTag, setSelectedTag] = useState<string>('');
+  const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [priceRange, setPriceRange] = useState<{ min?: number; max?: number }>({});
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   
   const handleTagSelect = (tag: string) => {
     setSelectedTag(selectedTag === tag ? '' : tag);
+  };
+
+  const handleDomainSelect = (domain: string) => {
+    setSelectedDomain(selectedDomain === domain ? '' : domain);
   };
   
   const handleApplyFilters = () => {
@@ -24,23 +31,78 @@ const FilterSidebar: React.FC<FilterSidebarProps> = ({ onApplyFilters, available
       tag: selectedTag || undefined,
       minPrice: priceRange.min,
       maxPrice: priceRange.max,
+      domain: selectedDomain || undefined,
     });
     setMobileFiltersOpen(false);
   };
   
   const handleResetFilters = () => {
     setSelectedTag('');
+    setSelectedDomain('');
     setPriceRange({});
     onApplyFilters({});
     setMobileFiltersOpen(false);
   };
+
+  const engineeringDomains = domains.filter(d => d.category === 'Engineering');
+  const artsScienceDomains = domains.filter(d => d.category === 'Arts & Science');
   
   const filterContent = (
     <div className="space-y-6">
       <div>
+        <h3 className="text-sm font-medium text-gray-900 mb-4">Domains</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-xs font-medium text-gray-700 flex items-center mb-2">
+              <Laptop className="h-4 w-4 mr-1" />
+              Engineering
+            </h4>
+            <div className="space-y-2">
+              {engineeringDomains.map((domain) => (
+                <button
+                  key={domain.name}
+                  onClick={() => handleDomainSelect(domain.name)}
+                  className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                    selectedDomain === domain.name
+                      ? 'bg-primary-100 text-primary-800'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {domain.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-medium text-gray-700 flex items-center mb-2">
+              <GraduationCap className="h-4 w-4 mr-1" />
+              Arts & Science
+            </h4>
+            <div className="space-y-2">
+              {artsScienceDomains.map((domain) => (
+                <button
+                  key={domain.name}
+                  onClick={() => handleDomainSelect(domain.name)}
+                  className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                    selectedDomain === domain.name
+                      ? 'bg-primary-100 text-primary-800'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {domain.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
         <h3 className="text-sm font-medium text-gray-900 flex items-center">
           <Tag className="h-4 w-4 mr-2" />
-          Categories
+          Technologies
         </h3>
         <div className="mt-4 flex flex-wrap gap-2">
           {availableTags.map((tag) => (
