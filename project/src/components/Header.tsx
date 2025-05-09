@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, ShoppingBag, Store, LogOut, User as UserIcon, RefreshCw } from 'lucide-react';
+import { Menu, X, ShoppingBag, Store, LogOut, User as UserIcon, RefreshCw, Briefcase, GraduationCap, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Header: React.FC = () => {
@@ -47,6 +47,21 @@ const Header: React.FC = () => {
             <nav className="hidden md:flex space-x-8 items-center">
               <Link to="/" className="text-gray-700 hover:text-primary-500 px-3 py-2 text-sm font-medium transition-colors">
                 Marketplace
+              </Link>
+
+              <Link to="/portfolios" className="flex items-center text-gray-700 hover:text-primary-500 px-3 py-2 text-sm font-medium transition-colors">
+                <Briefcase className="h-4 w-4 mr-1" />
+                Portfolios
+              </Link>
+
+              <Link to="/phd-projects" className="flex items-center text-gray-700 hover:text-primary-500 px-3 py-2 text-sm font-medium transition-colors">
+                <GraduationCap className="h-4 w-4 mr-1" />
+                PhD Projects
+              </Link>
+
+              <Link to="/custom-projects" className="flex items-center text-gray-700 hover:text-primary-500 px-3 py-2 text-sm font-medium transition-colors">
+                <Settings className="h-4 w-4 mr-1" />
+                Custom Projects
               </Link>
               
               {user ? (
@@ -127,6 +142,33 @@ const Header: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Marketplace
+              </Link>
+
+              <Link
+                to="/portfolios"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Briefcase className="h-5 w-5 mr-2" />
+                Portfolios
+              </Link>
+
+              <Link
+                to="/phd-projects"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <GraduationCap className="h-5 w-5 mr-2" />
+                PhD Projects
+              </Link>
+
+              <Link
+                to="/custom-projects"
+                className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Settings className="h-5 w-5 mr-2" />
+                Custom Projects
               </Link>
               
               {user ? (
