@@ -1,13 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Project } from '../lib/supabase';
-import { Tag, DollarSign, Github } from 'lucide-react';
+import { Tag, DollarSign, Github, Laptop, GraduationCap } from 'lucide-react';
 
 interface ProjectCardProps {
   project: Project;
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
+  const isEngineering = project.domain.includes('Engineering');
+
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-1 hover:shadow-lg">
       <Link to={`/projects/${project.id}`}>
@@ -21,6 +23,15 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
       </Link>
       
       <div className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          {isEngineering ? (
+            <Laptop className="h-4 w-4 text-primary-600" />
+          ) : (
+            <GraduationCap className="h-4 w-4 text-primary-600" />
+          )}
+          <span className="text-sm font-medium text-gray-600">{project.domain}</span>
+        </div>
+
         <div className="flex flex-wrap gap-2 mb-3">
           {project.tags.slice(0, 3).map((tag, index) => (
             <span 
