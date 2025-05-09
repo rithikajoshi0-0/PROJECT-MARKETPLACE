@@ -7,6 +7,12 @@ const supabaseKey = 'demo-anon-key';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+export type Domain = {
+  name: string;
+  codingUsage: 'Very High' | 'High' | 'Moderate' | 'Low';
+  category: 'Engineering' | 'Arts & Science';
+};
+
 // Types based on the database schema
 export type User = {
   id: string;
@@ -25,6 +31,7 @@ export type Project = {
   price: number;
   status: 'Available' | 'Sold';
   user_id: string;
+  domain: string;
   user?: User;
   files?: string[];
 };
@@ -38,7 +45,30 @@ export type Purchase = {
   buyer?: User;
 };
 
-// For the MVP, we'll use mock data to simulate the API
+export const domains: Domain[] = [
+  { name: 'Computer Science Engineering (CSE)', codingUsage: 'Very High', category: 'Engineering' },
+  { name: 'Information Technology (IT)', codingUsage: 'Very High', category: 'Engineering' },
+  { name: 'Computer Engineering', codingUsage: 'Very High', category: 'Engineering' },
+  { name: 'Electronics and Communication Engineering (ECE)', codingUsage: 'High', category: 'Engineering' },
+  { name: 'Electrical and Electronics Engineering (EEE)', codingUsage: 'High', category: 'Engineering' },
+  { name: 'Mechatronics Engineering', codingUsage: 'High', category: 'Engineering' },
+  { name: 'Robotics Engineering', codingUsage: 'High', category: 'Engineering' },
+  { name: 'Artificial Intelligence & Data Science (AI & DS)', codingUsage: 'Very High', category: 'Engineering' },
+  { name: 'Mechanical Engineering', codingUsage: 'Moderate', category: 'Engineering' },
+  { name: 'Biomedical Engineering', codingUsage: 'Moderate', category: 'Engineering' },
+  { name: 'Aerospace Engineering', codingUsage: 'Moderate', category: 'Engineering' },
+  { name: 'B.Sc. Computer Science', codingUsage: 'Very High', category: 'Arts & Science' },
+  { name: 'B.Sc. Information Technology (IT)', codingUsage: 'Very High', category: 'Arts & Science' },
+  { name: 'BCA (Bachelor of Computer Applications)', codingUsage: 'Very High', category: 'Arts & Science' },
+  { name: 'B.Sc. Data Science / AI', codingUsage: 'Very High', category: 'Arts & Science' },
+  { name: 'B.Sc. Electronics', codingUsage: 'Moderate', category: 'Arts & Science' },
+  { name: 'B.Sc. Mathematics / Statistics', codingUsage: 'Moderate', category: 'Arts & Science' },
+  { name: 'B.Sc. Physics', codingUsage: 'Moderate', category: 'Arts & Science' },
+  { name: 'B.Sc. Bioinformatics', codingUsage: 'Moderate', category: 'Arts & Science' },
+  { name: 'B.Sc. Multimedia / Animation', codingUsage: 'Moderate', category: 'Arts & Science' },
+];
+
+// Mock data
 export const mockUsers: User[] = [
   { id: '1', name: 'John Seller', email: 'john@example.com', role: 'Seller' },
   { id: '2', name: 'Jane Buyer', email: 'jane@example.com', role: 'Buyer' },
@@ -55,6 +85,7 @@ export const mockProjects: Project[] = [
     price: 99,
     status: 'Available',
     user_id: '1',
+    domain: 'Computer Science Engineering (CSE)',
     files: ['project-files.zip'],
   },
   {
@@ -67,6 +98,7 @@ export const mockProjects: Project[] = [
     price: 49,
     status: 'Available',
     user_id: '1',
+    domain: 'Information Technology (IT)',
     files: ['dashboard-source.zip'],
   },
   {
@@ -79,6 +111,7 @@ export const mockProjects: Project[] = [
     price: 0,
     status: 'Available',
     user_id: '1',
+    domain: 'B.Sc. Computer Science',
     files: ['task-app.zip'],
   },
   {
@@ -91,6 +124,7 @@ export const mockProjects: Project[] = [
     price: 19,
     status: 'Available',
     user_id: '1',
+    domain: 'B.Sc. Information Technology (IT)',
     files: ['portfolio-template.zip'],
   },
 ];
@@ -159,7 +193,7 @@ export const api = {
   },
   
   // Project functions
-  getProjects: async (filters?: { tag?: string; minPrice?: number; maxPrice?: number }): Promise<Project[]> => {
+  getProjects: async (filters?: { tag?: string; minPrice?: number; maxPrice?: number; domain?: string }): Promise<Project[]> => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
@@ -176,6 +210,10 @@ export const api = {
       
       if (filters.maxPrice !== undefined) {
         filtered = filtered.filter(p => p.price <= filters.maxPrice!);
+      }
+
+      if (filters.domain) {
+        filtered = filtered.filter(p => p.domain === filters.domain);
       }
     }
     
