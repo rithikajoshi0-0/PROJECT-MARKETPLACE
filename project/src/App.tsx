@@ -9,6 +9,9 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import UploadProject from './pages/UploadProject';
+import Portfolios from './pages/Portfolios';
+import PhDProjects from './pages/PhDProjects';
+import CustomProjects from './pages/CustomProjects';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -22,6 +25,9 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/portfolios" element={<Portfolios />} />
+            <Route path="/phd-projects" element={<PhDProjects />} />
+            <Route path="/custom-projects" element={<CustomProjects />} />
             <Route 
               path="/dashboard" 
               element={
