@@ -10,6 +10,25 @@ const Home: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [userCurrency, setUserCurrency] = useState('USD');
+  const [exchangeRate, setExchangeRate] = useState(1);
+
+  useEffect(() => {
+    // Detect user's region and set currency
+    const detectUserRegion = async () => {
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        const data = await response.json();
+        setUserCurrency(data.currency || 'USD');
+        // For demo purposes, using fixed exchange rates
+        const rates = { USD: 1, EUR: 0.85, GBP: 0.73, INR: 83 };
+        setExchangeRate(rates[data.currency] || 1);
+      } catch (error) {
+        console.error('Error detecting region:', error);
+      }
+    };
+    detectUserRegion();
+  }, []);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -18,7 +37,6 @@ const Home: React.FC = () => {
         setProjects(fetchedProjects);
         setFilteredProjects(fetchedProjects);
         
-        // Extract all unique tags
         const tags = new Set<string>();
         fetchedProjects.forEach((project) => {
           project.tags.forEach((tag) => {
@@ -36,21 +54,6 @@ const Home: React.FC = () => {
     fetchProjects();
   }, []);
 
-  useEffect(() => {
-    if (searchQuery) {
-      const lowercaseQuery = searchQuery.toLowerCase();
-      const filtered = projects.filter(
-        (project) =>
-          project.title.toLowerCase().includes(lowercaseQuery) ||
-          project.description.toLowerCase().includes(lowercaseQuery) ||
-          project.tags.some((tag) => tag.toLowerCase().includes(lowercaseQuery))
-      );
-      setFilteredProjects(filtered);
-    } else {
-      setFilteredProjects(projects);
-    }
-  }, [searchQuery, projects]);
-
   const handleApplyFilters = async (filters: {
     tag?: string;
     minPrice?: number;
@@ -67,81 +70,65 @@ const Home: React.FC = () => {
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Search is handled by the useEffect above
+  const formatPrice = (price: number) => {
+    const convertedPrice = price * exchangeRate;
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: userCurrency,
+    }).format(convertedPrice);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-primary-700 text-white">
-        <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-extrabold sm:text-5xl md:text-6xl">
-              Find the perfect project
-            </h1>
-            <p className="mt-4 text-xl max-w-3xl mx-auto">
-              Browse high-quality code projects built by talented developers. Buy, extend, and deploy.
-            </p>
-            <div className="mt-8 max-w-3xl mx-auto">
-              <form onSubmit={handleSearch} className="flex w-full">
-                <div className="relative flex-grow">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-lg border-gray-300 rounded-l-md"
-                    placeholder="Search projects, technologies..."
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-r-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                >
-                  Search
-                </button>
-              </form>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center mb-8">
+          <div className="relative flex-grow">
+            <input
+              type="text"
+              placeholder="Search projects, technologies..."
+              className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <Search className="h-5 w-5 text-gray-400" />
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Filters */}
-          <FilterSidebar 
-            onApplyFilters={handleApplyFilters} 
-            availableTags={availableTags} 
-          />
-          
-          {/* Project Grid */}
-          <div className="col-span-1 md:col-span-3">
-            <div className="mb-6 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {filteredProjects.length} {filteredProjects.length === 1 ? 'Project' : 'Projects'} Available
+        <div className="flex gap-8">
+          <div className="w-64 flex-shrink-0">
+            <FilterSidebar 
+              onApplyFilters={handleApplyFilters}
+              availableTags={availableTags}
+            />
+          </div>
+
+          <div className="flex-grow">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-semibold">
+                Available Projects <span className="text-gray-500">({filteredProjects.length})</span>
               </h2>
+              <select className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <option>Popular</option>
+                <option>Newest</option>
+                <option>Price: Low to High</option>
+                <option>Price: High to Low</option>
+              </select>
             </div>
-            
+
             {loading ? (
               <div className="flex justify-center items-center py-20">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
               </div>
-            ) : filteredProjects.length === 0 ? (
-              <div className="bg-white rounded-lg p-8 text-center">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No projects found</h3>
-                <p className="text-gray-600">
-                  Try changing your search terms or filters.
-                </p>
-              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 {filteredProjects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
+                  <ProjectCard 
+                    key={project.id} 
+                    project={project}
+                    formatPrice={formatPrice}
+                  />
                 ))}
               </div>
             )}
