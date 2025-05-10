@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, Store, LogOut, User as UserIcon, RefreshCw, Briefcase, GraduationCap, Settings } from 'lucide-react';
+import { Menu, X, LogOut, User as UserIcon, RefreshCw, Briefcase, GraduationCap, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import RiseLogo from './RiseLogo';
 
@@ -37,8 +37,8 @@ const Header: React.FC = () => {
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="flex items-center gap-2">
+            <div className="flex items-center">
+              <Link to="/" className="flex items-center">
                 <RiseLogo />
               </Link>
             </div>
@@ -46,7 +46,7 @@ const Header: React.FC = () => {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-8 items-center">
               <Link to="/" className="text-gray-700 hover:text-primary-500 px-3 py-2 text-sm font-medium transition-colors">
-                Marketplace
+                Projects
               </Link>
 
               <Link to="/portfolios" className="flex items-center text-gray-700 hover:text-primary-500 px-3 py-2 text-sm font-medium transition-colors">
@@ -141,7 +141,7 @@ const Header: React.FC = () => {
                 className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Marketplace
+                Projects
               </Link>
 
               <Link
