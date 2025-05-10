@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, AlertCircle, Github, Mail } from 'lucide-react';
+import { LogIn, AlertCircle, Github, Mail, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/Button';
 
@@ -56,15 +56,8 @@ const Login: React.FC = () => {
     }
   };
 
-  // For demo purposes, auto-fill the form with mock user data
-  const fillDemoSeller = () => {
-    setEmail('john@example.com');
-    setPassword('password');
-  };
-
-  const fillDemoBuyer = () => {
-    setEmail('jane@example.com');
-    setPassword('password');
+  const handleGuestLogin = () => {
+    navigate('/');
   };
 
   return (
@@ -198,35 +191,24 @@ const Login: React.FC = () => {
               </div>
             </form>
 
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Demo accounts</span>
-                </div>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
               </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <div>
-                  <button
-                    onClick={fillDemoSeller}
-                    className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Demo Seller
-                  </button>
-                </div>
-                <div>
-                  <button
-                    onClick={fillDemoBuyer}
-                    className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Demo Buyer
-                  </button>
-                </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or browse as guest</span>
               </div>
             </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              onClick={handleGuestLogin}
+              leftIcon={<User className="h-4 w-4" />}
+            >
+              Continue as Guest
+            </Button>
           </div>
         </div>
       </div>
