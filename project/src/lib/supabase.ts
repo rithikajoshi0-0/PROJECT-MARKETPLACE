@@ -68,6 +68,30 @@ export const domains: Domain[] = [
   { name: 'B.Sc. Multimedia / Animation', codingUsage: 'Moderate', category: 'Arts & Science' },
 ];
 
+// Fixed exchange rates for different currencies
+export const exchangeRates = {
+  USD: 1,
+  INR: 100,
+  EUR: 0.85,
+  GBP: 0.73,
+  AUD: 1.35,
+  CAD: 1.25,
+  SGD: 1.33,
+  NZD: 1.45,
+};
+
+// Currency symbols for different currencies
+export const currencySymbols = {
+  USD: '$',
+  INR: '₹',
+  EUR: '€',
+  GBP: '£',
+  AUD: 'A$',
+  CAD: 'C$',
+  SGD: 'S$',
+  NZD: 'NZ$',
+};
+
 // Mock data
 export const mockUsers: User[] = [
   { id: '1', name: 'John Seller', email: 'john@example.com', role: 'Seller' },
@@ -236,14 +260,18 @@ export const api = {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // In a real app, we would upload files to storage here
-    const fileNames = project.files?.map(file => file.name) || ['project-files.zip'];
-    
+    // If using file upload, first upload the image
+    let imageUrl = project.image;
+    if (project.files?.length) {
+      // In a real app, you would upload the file to your storage service here
+      imageUrl = URL.createObjectURL(project.files[0]);
+    }
+
     const newProject: Project = {
       ...project,
       id: String(mockProjects.length + 1),
       status: 'Available',
-      files: fileNames,
+      files: project.files?.map(f => f.name) || ['project-files.zip'],
     };
     
     mockProjects.push(newProject);
