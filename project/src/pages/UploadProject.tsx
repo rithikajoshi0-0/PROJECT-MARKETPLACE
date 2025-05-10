@@ -1,12 +1,21 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, AlertCircle, Link as LinkIcon, Tag as TagIcon, DollarSign, Image as ImageIcon, FileUp } from 'lucide-react';
+import { Upload, AlertCircle, Link as LinkIcon, Tag as TagIcon, DollarSign, Image as ImageIcon, FileUp, Github, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/supabase';
 import Button from '../components/Button';
+import { Octokit } from '@octokit/rest';
+
+interface GithubRepo {
+  name: string;
+  description: string;
+  html_url: string;
+  topics: string[];
+  default_branch: string;
+}
 
 const UploadProject: React.FC = () => {
-  const { user } = useAuth();
+  const { user, githubToken } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectFilesRef = useRef<HTMLInputElement>(null);
@@ -25,6 +34,53 @@ const UploadProject: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url');
+  const [githubRepos, setGithubRepos] = useState<GithubRepo[]>([]);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [selectedRepo, setSelectedRepo] = useState<GithubRepo | null>(null);
+
+  useEffect(() => {
+    if (githubToken) {
+      fetchGithubRepos();
+    }
+  }, [githubToken]);
+
+  const fetchGithubRepos = async () => {
+    if (!githubToken) return;
+
+    setLoadingRepos(true);
+    try {
+      const octokit = new Octokit({ auth: githubToken });
+      const { data } = await octokit.repos.listForAuthenticatedUser({
+        visibility: 'public',
+        sort: 'updated',
+        per_page: 100,
+      });
+      
+      setGithubRepos(data.map(repo => ({
+        name: repo.name,
+        description: repo.description || '',
+        html_url: repo.html_url,
+        topics: repo.topics || [],
+        default_branch: repo.default_branch,
+      })));
+    } catch (error) {
+      console.error('Error fetching GitHub repos:', error);
+      setError('Failed to fetch GitHub repositories');
+    } finally {
+      setLoadingRepos(false);
+    }
+  };
+
+  const handleRepoSelect = (repo: GithubRepo) => {
+    setSelectedRepo(repo);
+    setFormData(prev => ({
+      ...prev,
+      title: repo.name,
+      description: repo.description || '',
+      tags: repo.topics.length ? repo.topics : [''],
+      github_link: repo.html_url,
+    }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -140,6 +196,62 @@ const UploadProject: React.FC = () => {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {githubToken && (
+              <div className="mb-8">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Import from GitHub</h2>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Select a repository to import</span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={fetchGithubRepos}
+                      leftIcon={<RefreshCw className="h-4 w-4" />}
+                      isLoading={loadingRepos}
+                    >
+                      Refresh
+                    </Button>
+                  </div>
+                  
+                  <div className="grid gap-4 max-h-60 overflow-y-auto">
+                    {githubRepos.map((repo) => (
+                      <button
+                        key={repo.html_url}
+                        onClick={() => handleRepoSelect(repo)}
+                        className={`text-left p-4 rounded-lg border ${
+                          selectedRepo?.html_url === repo.html_url
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-primary-300'
+                        }`}
+                      >
+                        <div className="flex items-start">
+                          <Github className="h-5 w-5 text-gray-400 mt-1" />
+                          <div className="ml-3">
+                            <h3 className="text-sm font-medium text-gray-900">{repo.name}</h3>
+                            {repo.description && (
+                              <p className="mt-1 text-sm text-gray-500">{repo.description}</p>
+                            )}
+                            {repo.topics.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {repo.topics.map((topic) => (
+                                  <span
+                                    key={topic}
+                                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800"
+                                  >
+                                    {topic}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
