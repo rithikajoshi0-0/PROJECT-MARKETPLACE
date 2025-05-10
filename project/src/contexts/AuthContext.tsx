@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, api } from '../lib/supabase';
+import { Octokit } from '@octokit/rest';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User | null>;
+  loginWithGithub: () => Promise<User | null>;
+  loginWithGoogle: () => Promise<User | null>;
   signup: (name: string, email: string, role: 'Seller' | 'Buyer', password: string) => Promise<User | null>;
   logout: () => Promise<void>;
   switchRole: (newRole: 'Seller' | 'Buyer') => Promise<void>;
+  githubToken?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -15,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [githubToken, setGithubToken] = useState<string>();
 
   useEffect(() => {
     // Check if user is already logged in
@@ -29,6 +34,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return loggedInUser;
   };
 
+  const loginWithGithub = async () => {
+    try {
+      const response = await api.loginWithGithub();
+      if (response.user && response.githubToken) {
+        setUser(response.user);
+        setGithubToken(response.githubToken);
+        return response.user;
+      }
+      return null;
+    } catch (error) {
+      console.error('GitHub login error:', error);
+      return null;
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    try {
+      const loggedInUser = await api.loginWithGoogle();
+      setUser(loggedInUser);
+      return loggedInUser;
+    } catch (error) {
+      console.error('Google login error:', error);
+      return null;
+    }
+  };
+
   const signup = async (name: string, email: string, role: 'Seller' | 'Buyer', password: string) => {
     const newUser = await api.signup(name, email, role, password);
     setUser(newUser);
@@ -38,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await api.logout();
     setUser(null);
+    setGithubToken(undefined);
   };
 
   const switchRole = async (newRole: 'Seller' | 'Buyer') => {
@@ -48,7 +80,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, switchRole }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      login, 
+      loginWithGithub,
+      loginWithGoogle,
+      signup, 
+      logout, 
+      switchRole,
+      githubToken 
+    }}>
       {children}
     </AuthContext.Provider>
   );
