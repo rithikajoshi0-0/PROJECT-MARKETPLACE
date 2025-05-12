@@ -22,11 +22,20 @@ const Login: React.FC = () => {
       if (email && password) {
         const user = await login(email, password);
         if (user) {
-          if (isAdminLogin && user.role !== 'Admin') {
-            setError('Invalid admin credentials');
-            return;
+          if (isAdminLogin) {
+            if (user.role !== 'Admin') {
+              setError('Invalid admin credentials');
+              setIsLoading(false);
+              return;
+            }
+            navigate('/admin');
+          } else {
+            if (user.role === 'Admin') {
+              navigate('/admin');
+            } else {
+              navigate('/dashboard');
+            }
           }
-          navigate(user.role === 'Admin' ? '/admin' : '/dashboard');
         } else {
           setError('Invalid email or password');
         }
