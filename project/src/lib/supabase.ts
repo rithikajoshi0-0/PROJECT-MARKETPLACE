@@ -19,6 +19,9 @@ export type User = {
   name: string;
   email: string;
   role: 'Seller' | 'Buyer';
+  projectUploads: number;
+  projectDeletions: number;
+  isPremium: boolean;
 };
 
 export type Project = {
@@ -94,8 +97,8 @@ export const currencySymbols = {
 
 // Mock data
 export const mockUsers: User[] = [
-  { id: '1', name: 'John Seller', email: 'john@example.com', role: 'Seller' },
-  { id: '2', name: 'Jane Buyer', email: 'jane@example.com', role: 'Buyer' },
+  { id: '1', name: 'John Seller', email: 'john@example.com', role: 'Seller', projectUploads: 0, projectDeletions: 0, isPremium: false },
+  { id: '2', name: 'Jane Buyer', email: 'jane@example.com', role: 'Buyer', projectUploads: 0, projectDeletions: 0, isPremium: false },
 ];
 
 export const mockProjects: Project[] = [
@@ -171,9 +174,7 @@ export const api = {
   },
   
   login: async (email: string, password: string): Promise<User | null> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     const user = mockUsers.find(u => u.email === email);
     if (user) {
       localStorage.setItem('currentUser', JSON.stringify(user));
@@ -183,9 +184,7 @@ export const api = {
   },
   
   signup: async (name: string, email: string, role: 'Seller' | 'Buyer', password: string): Promise<User | null> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     const existingUser = mockUsers.find(u => u.email === email);
     if (existingUser) return null;
     
@@ -194,6 +193,9 @@ export const api = {
       name,
       email,
       role,
+      projectUploads: 0,
+      projectDeletions: 0,
+      isPremium: false,
     };
     
     mockUsers.push(newUser);
@@ -206,21 +208,26 @@ export const api = {
   },
 
   updateUserRole: async (userId: string, newRole: 'Seller' | 'Buyer'): Promise<void> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     const user = mockUsers.find(u => u.id === userId);
     if (user) {
       user.role = newRole;
       localStorage.setItem('currentUser', JSON.stringify(user));
     }
   },
+
+  upgradeToPremium: async (userId: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const user = mockUsers.find(u => u.id === userId);
+    if (user) {
+      user.isPremium = true;
+      localStorage.setItem('currentUser', JSON.stringify(user));
+    }
+  },
   
   // Project functions
   getProjects: async (filters?: { tag?: string; minPrice?: number; maxPrice?: number; domain?: string }): Promise<Project[]> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     let filtered = [...mockProjects];
     
     if (filters) {
@@ -245,25 +252,25 @@ export const api = {
   },
   
   getProject: async (id: string): Promise<Project | null> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     const project = mockProjects.find(p => p.id === id);
     if (!project) return null;
-    
-    // Attach user data
     const user = mockUsers.find(u => u.id === project.user_id);
     return { ...project, user };
   },
   
   createProject: async (project: Omit<Project, 'id' | 'status' | 'files'> & { files?: File[] }): Promise<Project> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // If using file upload, first upload the image
+    const user = mockUsers.find(u => u.id === project.user_id);
+    if (!user) throw new Error('User not found');
+
+    if (!user.isPremium && user.projectUploads >= 3) {
+      throw new Error('Upload limit reached. Upgrade to premium to upload more projects.');
+    }
+
     let imageUrl = project.image;
     if (project.files?.length) {
-      // In a real app, you would upload the file to your storage service here
       imageUrl = URL.createObjectURL(project.files[0]);
     }
 
@@ -275,12 +282,31 @@ export const api = {
     };
     
     mockProjects.push(newProject);
+    user.projectUploads++;
+    localStorage.setItem('currentUser', JSON.stringify(user));
     return newProject;
+  },
+
+  deleteProject: async (projectId: string, userId: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const user = mockUsers.find(u => u.id === userId);
+    if (!user) throw new Error('User not found');
+
+    if (!user.isPremium && user.projectDeletions >= 3) {
+      throw new Error('Deletion limit reached. Upgrade to premium for unlimited deletions.');
+    }
+
+    const index = mockProjects.findIndex(p => p.id === projectId && p.user_id === userId);
+    if (index === -1) throw new Error('Project not found');
+
+    mockProjects.splice(index, 1);
+    user.projectDeletions++;
+    localStorage.setItem('currentUser', JSON.stringify(user));
   },
   
   // Purchase functions
   purchaseProject: async (buyerId: string, projectId: string): Promise<Purchase> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const newPurchase: Purchase = {
@@ -292,7 +318,6 @@ export const api = {
     
     mockPurchases.push(newPurchase);
     
-    // Update project status
     const project = mockProjects.find(p => p.id === projectId);
     if (project) {
       project.status = 'Sold';
@@ -302,12 +327,10 @@ export const api = {
   },
   
   getUserPurchases: async (userId: string): Promise<Purchase[]> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
     const purchases = mockPurchases.filter(p => p.buyer_id === userId);
     
-    // Attach project data
     return purchases.map(purchase => {
       const project = mockProjects.find(p => p.id === purchase.project_id);
       return { ...purchase, project };
@@ -315,31 +338,23 @@ export const api = {
   },
   
   getUserProjects: async (userId: string): Promise<Project[]> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     return mockProjects.filter(p => p.user_id === userId);
   },
   
   hasPurchased: async (userId: string, projectId: string): Promise<boolean> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
-    
     return mockPurchases.some(p => p.buyer_id === userId && p.project_id === projectId);
   },
 
   downloadProject: async (projectId: string): Promise<void> => {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // In a real app, this would generate a download URL or stream the file
-    // For the MVP, we'll simulate a download
     const project = mockProjects.find(p => p.id === projectId);
     if (!project?.files?.length) {
       throw new Error('No files available for download');
     }
 
-    // Simulate file download
     const link = document.createElement('a');
     link.href = `data:application/zip;base64,UEsDBAoAAAAAAONjiFQAAAAAAAAAAAAAAAA${projectId}`;
     link.download = project.files[0];
