@@ -12,9 +12,13 @@ const Header: React.FC = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-    setShowLogoutConfirm(false);
+    try {
+      await logout();
+      navigate('/login');
+      setShowLogoutConfirm(false);
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   const handleRoleSwitch = async () => {
@@ -43,7 +47,7 @@ const Header: React.FC = () => {
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Admin Panel</span>
               <button
-                onClick={() => setShowLogoutConfirm(true)}
+                onClick={handleLogout}
                 className="flex items-center gap-2 text-gray-700 hover:text-primary-500 px-3 py-2 text-sm font-medium transition-colors"
               >
                 <LogOut className="h-4 w-4" />
