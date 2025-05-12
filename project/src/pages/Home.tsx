@@ -17,14 +17,28 @@ const Home: React.FC = () => {
     // Detect user's region and set currency
     const detectUserRegion = async () => {
       try {
-        const response = await fetch('https://ipapi.co/json/');
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-region`, {
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error('Region detection failed');
+        }
+
         const data = await response.json();
-        setUserCurrency(data.currency || 'USD');
+        const currency = data.currency || 'USD';
+        setUserCurrency(currency);
+        
         // For demo purposes, using fixed exchange rates
         const rates = { USD: 1, EUR: 0.85, GBP: 0.73, INR: 83 };
-        setExchangeRate(rates[data.currency] || 1);
+        setExchangeRate(rates[currency] || 1);
       } catch (error) {
         console.error('Error detecting region:', error);
+        // Fallback to USD
+        setUserCurrency('USD');
+        setExchangeRate(1);
       }
     };
     detectUserRegion();
