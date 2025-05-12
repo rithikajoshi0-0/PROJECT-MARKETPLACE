@@ -1,121 +1,116 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, AlertCircle, Link as LinkIcon, Tag as TagIcon, DollarSign, Image as ImageIcon, FileUp, Github, RefreshCw } from 'lucide-react';
+import { Upload, AlertCircle, Link as LinkIcon, Tag as TagIcon, DollarSign, Image as ImageIcon, FileUp, Github, RefreshCw, GraduationCap, Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/supabase';
 import Button from '../components/Button';
 import { Octokit } from '@octokit/rest';
+import { useDropzone } from 'react-dropzone';
+import { Document, Page, pdfjs } from 'react-pdf';
 
-interface GithubRepo {
-  name: string;
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+
+type UploadType = 'Project' | 'Portfolio' | 'PhD Paper';
+
+interface CommonFormData {
+  title: string;
   description: string;
-  html_url: string;
-  topics: string[];
-  default_branch: string;
+  tags: string[];
+  price: number;
+  image: string;
+}
+
+interface ProjectFormData extends CommonFormData {
+  github_link: string;
+  deliveryTimeline: string;
+  demoUrl?: string;
+}
+
+interface PortfolioFormData extends CommonFormData {
+  developerBio: string;
+  skills: string[];
+  linkedinUrl: string;
+  githubUrl: string;
+  resumeFile?: File;
+}
+
+interface PhDFormData extends CommonFormData {
+  abstract: string;
+  domain: string;
+  yearCompleted: number;
+  university: string;
+  authorName?: string;
+  isPeerReviewed: boolean;
+  pdfFile?: File;
+  previewPages: number[];
 }
 
 const UploadProject: React.FC = () => {
-  const { user, githubToken } = useAuth();
-  const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const projectFilesRef = useRef<HTMLInputElement>(null);
-  
-  const [formData, setFormData] = useState({
+  const [uploadType, setUploadType] = useState<UploadType>('Project');
+  const [projectData, setProjectData] = useState<ProjectFormData>({
     title: '',
     description: '',
     tags: [''],
     github_link: '',
     image: '',
     price: 0,
+    deliveryTimeline: '1-2 weeks',
+    demoUrl: ''
   });
-  
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [projectFiles, setProjectFiles] = useState<File[]>([]);
+  const [portfolioData, setPortfolioData] = useState<PortfolioFormData>({
+    title: '',
+    description: '',
+    tags: [''],
+    image: '',
+    price: 0,
+    developerBio: '',
+    skills: [''],
+    linkedinUrl: '',
+    githubUrl: ''
+  });
+  const [phdData, setPhdData] = useState<PhDFormData>({
+    title: '',
+    description: '',
+    tags: [''],
+    image: '',
+    price: 0,
+    abstract: '',
+    domain: '',
+    yearCompleted: new Date().getFullYear(),
+    university: '',
+    authorName: '',
+    isPeerReviewed: false,
+    previewPages: [1, 2]
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url');
-  const [githubRepos, setGithubRepos] = useState<GithubRepo[]>([]);
-  const [loadingRepos, setLoadingRepos] = useState(false);
-  const [selectedRepo, setSelectedRepo] = useState<GithubRepo | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (githubToken) {
-      fetchGithubRepos();
+  const { getRootProps, getInputProps } = useDropzone({
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/zip': ['.zip', '.rar'],
+      'image/*': ['.png', '.jpg', '.jpeg']
+    },
+    onDrop: (acceptedFiles) => {
+      const file = acceptedFiles[0];
+      if (file.type.includes('pdf')) {
+        setPhdData(prev => ({ ...prev, pdfFile: file }));
+      } else if (file.type.includes('image')) {
+        const imageUrl = URL.createObjectURL(file);
+        if (uploadType === 'Project') {
+          setProjectData(prev => ({ ...prev, image: imageUrl }));
+        } else if (uploadType === 'Portfolio') {
+          setPortfolioData(prev => ({ ...prev, image: imageUrl }));
+        } else {
+          setPhdData(prev => ({ ...prev, image: imageUrl }));
+        }
+      }
     }
-  }, [githubToken]);
-
-  const fetchGithubRepos = async () => {
-    if (!githubToken) return;
-
-    setLoadingRepos(true);
-    try {
-      const octokit = new Octokit({ auth: githubToken });
-      const { data } = await octokit.repos.listForAuthenticatedUser({
-        visibility: 'public',
-        sort: 'updated',
-        per_page: 100,
-      });
-      
-      setGithubRepos(data.map(repo => ({
-        name: repo.name,
-        description: repo.description || '',
-        html_url: repo.html_url,
-        topics: repo.topics || [],
-        default_branch: repo.default_branch,
-      })));
-    } catch (error) {
-      console.error('Error fetching GitHub repos:', error);
-      setError('Failed to fetch GitHub repositories');
-    } finally {
-      setLoadingRepos(false);
-    }
-  };
-
-  const handleRepoSelect = (repo: GithubRepo) => {
-    setSelectedRepo(repo);
-    setFormData(prev => ({
-      ...prev,
-      title: repo.name,
-      description: repo.description || '',
-      tags: repo.topics.length ? repo.topics : [''],
-      github_link: repo.html_url,
-    }));
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleTagChange = (index: number, value: string) => {
-    const newTags = [...formData.tags];
-    newTags[index] = value;
-    setFormData((prev) => ({ ...prev, tags: newTags }));
-  };
-
-  const addTag = () => {
-    setFormData((prev) => ({ ...prev, tags: [...prev.tags, ''] }));
-  };
-
-  const removeTag = (index: number) => {
-    const newTags = [...formData.tags];
-    newTags.splice(index, 1);
-    setFormData((prev) => ({ ...prev, tags: newTags.length ? newTags : [''] }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-      const previewUrl = URL.createObjectURL(e.target.files[0]);
-      setFormData(prev => ({ ...prev, image: previewUrl }));
-    }
-  };
-
-  const handleProjectFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setProjectFiles(Array.from(e.target.files));
-    }
-  };
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,74 +121,292 @@ const UploadProject: React.FC = () => {
       return;
     }
 
-    // Basic validation
-    if (!formData.title.trim()) return setError('Title is required');
-    if (!formData.description.trim()) return setError('Description is required');
-    if (!formData.tags[0].trim()) return setError('At least one tag is required');
-    if (uploadMethod === 'url' && !formData.image.trim()) return setError('Project image URL is required');
-    if (uploadMethod === 'file' && !selectedFile) return setError('Project image file is required');
-    if (projectFiles.length === 0) return setError('Project files are required');
-
-    // Filter out empty tags
-    const filteredTags = formData.tags.filter((tag) => tag.trim());
-
     setLoading(true);
     try {
-      // If using file upload, first upload the image
-      let imageUrl = formData.image;
-      if (uploadMethod === 'file' && selectedFile) {
-        // In a real app, you would upload the file to your storage service here
-        imageUrl = URL.createObjectURL(selectedFile);
+      let uploadData;
+      switch (uploadType) {
+        case 'Project':
+          uploadData = { ...projectData, type: 'project', user_id: user.id };
+          break;
+        case 'Portfolio':
+          uploadData = { ...portfolioData, type: 'portfolio', user_id: user.id };
+          break;
+        case 'PhD Paper':
+          uploadData = { ...phdData, type: 'phd', user_id: user.id };
+          break;
       }
 
-      const project = await api.createProject({
-        ...formData,
-        image: imageUrl,
-        tags: filteredTags,
-        user_id: user.id,
-        files: projectFiles,
-      });
-
-      navigate(`/projects/${project.id}`);
+      await api.createProject(uploadData);
+      navigate('/dashboard');
     } catch (err) {
       console.error(err);
-      setError('Failed to upload project');
+      setError('Failed to upload content');
     } finally {
       setLoading(false);
     }
   };
 
-  // Redirect if not logged in or not a seller
-  if (user && user.role !== 'Seller') {
-    return (
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-            <p className="text-gray-600 mb-6">
-              Only sellers can upload projects. Please switch to a seller account to continue.
-            </p>
-            <Button onClick={() => navigate('/')}>Back to Marketplace</Button>
+  const renderUploadForm = () => {
+    switch (uploadType) {
+      case 'Project':
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Title</label>
+              <input
+                type="text"
+                value={projectData.title}
+                onChange={(e) => setProjectData({ ...projectData, title: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Description</label>
+              <textarea
+                value={projectData.description}
+                onChange={(e) => setProjectData({ ...projectData, description: e.target.value })}
+                rows={4}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Tech Stack</label>
+              <div className="mt-1 space-y-2">
+                {projectData.tags.map((tag, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={tag}
+                      onChange={(e) => {
+                        const newTags = [...projectData.tags];
+                        newTags[index] = e.target.value;
+                        setProjectData({ ...projectData, tags: newTags });
+                      }}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    />
+                    {index === projectData.tags.length - 1 && (
+                      <Button
+                        onClick={() => setProjectData({ ...projectData, tags: [...projectData.tags, ''] })}
+                        variant="secondary"
+                      >
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Price ($)</label>
+              <input
+                type="number"
+                value={projectData.price}
+                onChange={(e) => setProjectData({ ...projectData, price: Number(e.target.value) })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Delivery Timeline</label>
+              <select
+                value={projectData.deliveryTimeline}
+                onChange={(e) => setProjectData({ ...projectData, deliveryTimeline: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              >
+                <option>Instant Download</option>
+                <option>1-2 weeks</option>
+                <option>2-4 weeks</option>
+                <option>Custom Timeline</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Project Files</label>
+              <div {...getRootProps()} className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+                <input {...getInputProps()} />
+                <p className="text-gray-600">Drag and drop your project files here, or click to select files</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    );
-  }
+        );
+
+      case 'Portfolio':
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Developer Bio</label>
+              <textarea
+                value={portfolioData.developerBio}
+                onChange={(e) => setPortfolioData({ ...portfolioData, developerBio: e.target.value })}
+                rows={4}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Skills</label>
+              <div className="mt-1 space-y-2">
+                {portfolioData.skills.map((skill, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={skill}
+                      onChange={(e) => {
+                        const newSkills = [...portfolioData.skills];
+                        newSkills[index] = e.target.value;
+                        setPortfolioData({ ...portfolioData, skills: newSkills });
+                      }}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    />
+                    {index === portfolioData.skills.length - 1 && (
+                      <Button
+                        onClick={() => setPortfolioData({ ...portfolioData, skills: [...portfolioData.skills, ''] })}
+                        variant="secondary"
+                      >
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">LinkedIn URL</label>
+              <input
+                type="url"
+                value={portfolioData.linkedinUrl}
+                onChange={(e) => setPortfolioData({ ...portfolioData, linkedinUrl: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">GitHub URL</label>
+              <input
+                type="url"
+                value={portfolioData.githubUrl}
+                onChange={(e) => setPortfolioData({ ...portfolioData, githubUrl: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Resume</label>
+              <div {...getRootProps()} className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+                <input {...getInputProps()} />
+                <p className="text-gray-600">Upload your resume (PDF format)</p>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'PhD Paper':
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Title</label>
+              <input
+                type="text"
+                value={phdData.title}
+                onChange={(e) => setPhdData({ ...phdData, title: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Abstract</label>
+              <textarea
+                value={phdData.abstract}
+                onChange={(e) => setPhdData({ ...phdData, abstract: e.target.value })}
+                rows={6}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Domain</label>
+              <input
+                type="text"
+                value={phdData.domain}
+                onChange={(e) => setPhdData({ ...phdData, domain: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">University</label>
+              <input
+                type="text"
+                value={phdData.university}
+                onChange={(e) => setPhdData({ ...phdData, university: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Year of Completion</label>
+              <input
+                type="number"
+                value={phdData.yearCompleted}
+                onChange={(e) => setPhdData({ ...phdData, yearCompleted: Number(e.target.value) })}
+                min="1900"
+                max={new Date().getFullYear()}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={phdData.isPeerReviewed}
+                  onChange={(e) => setPhdData({ ...phdData, isPeerReviewed: e.target.checked })}
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm text-gray-900">Peer Reviewed</span>
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Full PDF</label>
+              <div {...getRootProps()} className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+                <input {...getInputProps()} />
+                <p className="text-gray-600">Upload your PhD paper (PDF format)</p>
+              </div>
+            </div>
+          </div>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="px-6 py-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Upload a New Project</h1>
+            <div className="flex items-center justify-between mb-8">
+              <h1 className="text-2xl font-bold text-gray-900">Upload Content</h1>
+              <div className="flex items-center space-x-2">
+                <select
+                  value={uploadType}
+                  onChange={(e) => setUploadType(e.target.value as UploadType)}
+                  className="block w-48 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                >
+                  <option value="Project">Project</option>
+                  <option value="Portfolio">Portfolio</option>
+                  <option value="PhD Paper">PhD Paper</option>
+                </select>
+              </div>
+            </div>
 
             {error && (
               <div className="mb-6 rounded-md bg-red-50 p-4">
                 <div className="flex">
-                  <div className="flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
-                  </div>
+                  <AlertCircle className="h-5 w-5 text-red-400" />
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">{error}</h3>
                   </div>
@@ -201,312 +414,17 @@ const UploadProject: React.FC = () => {
               </div>
             )}
 
-            {githubToken && (
-              <div className="mb-8">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Import from GitHub</h2>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Select a repository to import</span>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={fetchGithubRepos}
-                      leftIcon={<RefreshCw className="h-4 w-4" />}
-                      isLoading={loadingRepos}
-                    >
-                      Refresh
-                    </Button>
-                  </div>
-                  
-                  <div className="grid gap-4 max-h-60 overflow-y-auto">
-                    {githubRepos.map((repo) => (
-                      <button
-                        key={repo.html_url}
-                        onClick={() => handleRepoSelect(repo)}
-                        className={`text-left p-4 rounded-lg border ${
-                          selectedRepo?.html_url === repo.html_url
-                            ? 'border-primary-500 bg-primary-50'
-                            : 'border-gray-200 hover:border-primary-300'
-                        }`}
-                      >
-                        <div className="flex items-start">
-                          <Github className="h-5 w-5 text-gray-400 mt-1" />
-                          <div className="ml-3">
-                            <h3 className="text-sm font-medium text-gray-900">{repo.name}</h3>
-                            {repo.description && (
-                              <p className="mt-1 text-sm text-gray-500">{repo.description}</p>
-                            )}
-                            {repo.topics.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {repo.topics.map((topic) => (
-                                  <span
-                                    key={topic}
-                                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800"
-                                  >
-                                    {topic}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            <form onSubmit={handleSubmit}>
+              {renderUploadForm()}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Title
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  placeholder="E.g., E-commerce Platform"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  rows={5}
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  placeholder="Describe your project in detail..."
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tags
-                </label>
-                <div className="space-y-3">
-                  {formData.tags.map((tag, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="flex-grow relative rounded-md shadow-sm">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <TagIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                        </div>
-                        <input
-                          type="text"
-                          value={tag}
-                          onChange={(e) => handleTagChange(index, e.target.value)}
-                          className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                          placeholder="E.g., React, Node.js, MongoDB"
-                        />
-                      </div>
-                      {formData.tags.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeTag(index)}
-                          className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addTag}
-                    className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                  >
-                    Add Tag
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="github_link" className="block text-sm font-medium text-gray-700 mb-1">
-                  GitHub Repository URL (optional)
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LinkIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                  </div>
-                  <input
-                    type="url"
-                    id="github_link"
-                    name="github_link"
-                    value={formData.github_link}
-                    onChange={handleChange}
-                    className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                    placeholder="https://github.com/username/repo"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Image
-                </label>
-                <div className="space-y-4">
-                  <div className="flex space-x-4">
-                    <button
-                      type="button"
-                      onClick={() => setUploadMethod('url')}
-                      className={`flex-1 py-2 px-4 rounded-md text-sm font-medium ${
-                        uploadMethod === 'url'
-                          ? 'bg-primary-100 text-primary-700'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      Image URL
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setUploadMethod('file')}
-                      className={`flex-1 py-2 px-4 rounded-md text-sm font-medium ${
-                        uploadMethod === 'file'
-                          ? 'bg-primary-100 text-primary-700'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      Upload File
-                    </button>
-                  </div>
-
-                  {uploadMethod === 'url' ? (
-                    <div className="mt-1 relative rounded-md shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <ImageIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                      </div>
-                      <input
-                        type="url"
-                        id="image"
-                        name="image"
-                        value={formData.image}
-                        onChange={handleChange}
-                        className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                        placeholder="https://example.com/image.jpg"
-                      />
-                    </div>
-                  ) : (
-                    <div className="mt-1">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        accept="image/*"
-                        className="hidden"
-                      />
-                      <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                        <div className="space-y-1 text-center">
-                          <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                          <div className="flex text-sm text-gray-600">
-                            <label
-                              htmlFor="file-upload"
-                              className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
-                            >
-                              <span onClick={() => fileInputRef.current?.click()}>Upload a file</span>
-                            </label>
-                            <p className="pl-1">or drag and drop</p>
-                          </div>
-                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                          {selectedFile && (
-                            <p className="text-sm text-gray-600 mt-2">
-                              Selected: {selectedFile.name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Recommended image size: 1280x720 pixels
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project Files
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="file"
-                    ref={projectFilesRef}
-                    onChange={handleProjectFilesChange}
-                    className="hidden"
-                    multiple
-                  />
-                  <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                    <div className="space-y-1 text-center">
-                      <FileUp className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="flex text-sm text-gray-600">
-                        <label
-                          htmlFor="project-files-upload"
-                          className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
-                        >
-                          <span onClick={() => projectFilesRef.current?.click()}>Upload project files</span>
-                        </label>
-                        <p className="pl-1">or drag and drop</p>
-                      </div>
-                      <p className="text-xs text-gray-500">ZIP files up to 100MB</p>
-                      {projectFiles.length > 0 && (
-                        <div className="text-sm text-gray-600 mt-2">
-                          <p>Selected files:</p>
-                          <ul className="list-disc list-inside">
-                            {projectFiles.map((file, index) => (
-                              <li key={index}>{file.name}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                  Price (USD)
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <DollarSign className="h-4 w-4 text-gray-400" aria-hidden="true" />
-                  </div>
-                  <input
-                    type="number"
-                    id="price"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleChange}
-                    min="0"
-                    step="1"
-                    className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                    placeholder="0"
-                  />
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Set to 0 for free projects
-                </p>
-              </div>
-
-              <div className="pt-4">
+              <div className="mt-8">
                 <Button
                   type="submit"
                   fullWidth
                   isLoading={loading}
                   leftIcon={<Upload className="h-5 w-5" />}
                 >
-                  Upload Project
+                  Upload {uploadType}
                 </Button>
               </div>
             </form>
