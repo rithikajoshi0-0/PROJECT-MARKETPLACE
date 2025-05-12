@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Project, Purchase, api } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, ShoppingCart, AlertCircle, Plus, Download, ExternalLink } from 'lucide-react';
+import { Package, ShoppingCart, AlertCircle, Plus, Download, ExternalLink, DollarSign, Calendar, Trash2 } from 'lucide-react';
 import Button from '../components/Button';
 
 const Dashboard: React.FC = () => {
@@ -10,6 +10,7 @@ const Dashboard: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'projects' | 'purchases'>(
     user?.role === 'Seller' ? 'projects' : 'purchases'
   );
@@ -37,6 +38,33 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, [user]);
 
+  const handleDeleteProject = async (projectId: string) => {
+    if (!user) return;
+
+    try {
+      await api.deleteProject(projectId, user.id);
+      const updatedProjects = projects.filter(p => p.id !== projectId);
+      setProjects(updatedProjects);
+    } catch (error: any) {
+      if (error.message.includes('Deletion limit')) {
+        setShowUpgradeModal(true);
+      }
+    }
+  };
+
+  const handleUpgrade = async () => {
+    if (!user) return;
+
+    try {
+      await api.upgradeToPremium(user.id);
+      setShowUpgradeModal(false);
+      // Refresh the page to update user status
+      window.location.reload();
+    } catch (error) {
+      console.error('Error upgrading account:', error);
+    }
+  };
+
   if (!user) {
     return <Navigate to="/login" />;
   }
@@ -47,9 +75,25 @@ const Dashboard: React.FC = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Manage your {user.role === 'Seller' ? 'projects and ' : ''}purchases
+            Manage your {user?.role === 'Seller' ? 'projects and ' : ''}purchases
           </p>
         </div>
+
+        {user?.role === 'Seller' && !user.isPremium && (
+          <div className="mb-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-2">Upgrade to Premium</h2>
+            <p className="mb-4">
+              You have uploaded {user.projectUploads}/3 projects and deleted {user.projectDeletions}/3 projects.
+              Upgrade to premium for unlimited uploads and deletions!
+            </p>
+            <button
+              onClick={() => setShowUpgradeModal(true)}
+              className="bg-white text-purple-600 px-4 py-2 rounded-md font-medium hover:bg-gray-100 transition-colors"
+            >
+              Upgrade Now
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="border-b border-gray-200 mb-6">
@@ -90,7 +134,12 @@ const Dashboard: React.FC = () => {
             <div className="mb-6 flex justify-between items-center">
               <h2 className="text-xl font-medium text-gray-900">Your Projects</h2>
               <Link to="/upload">
-                <Button leftIcon={<Plus className="h-4 w-4" />}>Add New Project</Button>
+                <Button 
+                  leftIcon={<Plus className="h-4 w-4" />}
+                  disabled={!user.isPremium && user.projectUploads >= 3}
+                >
+                  Add New Project
+                </Button>
               </Link>
             </div>
 
@@ -131,7 +180,7 @@ const Dashboard: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          <div className="mt-4 flex-shrink-0 sm:mt-0 sm:ml-5">
+                          <div className="mt-4 flex-shrink-0 sm:mt-0 sm:ml-5 space-x-2">
                             <Link
                               to={`/projects/${project.id}`}
                               className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
@@ -139,6 +188,14 @@ const Dashboard: React.FC = () => {
                               <ExternalLink className="h-4 w-4 mr-1" />
                               View
                             </Link>
+                            <button
+                              onClick={() => handleDeleteProject(project.id)}
+                              className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                              disabled={!user.isPremium && user.projectDeletions >= 3}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -193,6 +250,7 @@ const Dashboard: React.FC = () => {
                                 variant="success"
                                 size="sm"
                                 leftIcon={<Download className="h-4 w-4" />}
+                                onClick={() => purchase.project && api.downloadProject(purchase.project.id)}
                               >
                                 Download
                               </Button>
@@ -210,6 +268,53 @@ const Dashboard: React.FC = () => {
                 </ul>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Upgrade Modal */}
+        {showUpgradeModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+              <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div>
+                  <div className="mt-3 text-center sm:mt-5">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Upgrade to Premium
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        For just $1, you'll get:
+                        <ul className="list-disc list-inside mt-2">
+                          <li>Unlimited project uploads</li>
+                          <li>Unlimited project deletions</li>
+                          <li>Priority support</li>
+                        </ul>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                  <button
+                    type="button"
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm"
+                    onClick={handleUpgrade}
+                  >
+                    Upgrade Now
+                  </button>
+                  <button
+                    type="button"
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                    onClick={() => setShowUpgradeModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
