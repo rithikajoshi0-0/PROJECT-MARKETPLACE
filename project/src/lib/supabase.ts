@@ -26,6 +26,9 @@ export type User = {
   isPremium: boolean;
   isDeveloper?: boolean;
   isAdmin?: boolean;
+  expertise?: string[];
+  rating?: number;
+  completedProjects?: number;
 };
 
 export type Project = {
@@ -55,8 +58,16 @@ export type CustomProject = {
   status: 'Pending' | 'Assigned' | 'InProgress' | 'Submitted' | 'Delivered';
   budget: number;
   dueDate?: string;
+  domain: string;
   attachments?: string[];
   internalNotes?: string;
+  buyer?: User;
+  seller?: User;
+  submissionFiles?: string[];
+  submissionDate?: string;
+  reviewNotes?: string;
+  deliveryDate?: string;
+  downloadUrl?: string;
 };
 
 // Mock data
@@ -79,7 +90,10 @@ export const mockUsers: User[] = [
     projectUploads: 12, 
     projectDeletions: 0, 
     isPremium: true,
-    isDeveloper: true 
+    isDeveloper: true,
+    expertise: ['React', 'Node.js', 'TypeScript'],
+    rating: 4.8,
+    completedProjects: 15
   },
   { 
     id: '3', 
@@ -115,100 +129,33 @@ export const domains: Domain[] = [
   { name: 'B.Sc. Multimedia / Animation', codingUsage: 'Moderate', category: 'Arts & Science' },
 ];
 
-export const exchangeRates = {
-  USD: 1,
-  INR: 100,
-  EUR: 0.85,
-  GBP: 0.73,
-  AUD: 1.35,
-  CAD: 1.25,
-  SGD: 1.33,
-  NZD: 1.45,
-};
-
-export const currencySymbols = {
-  USD: '$',
-  INR: '₹',
-  EUR: '€',
-  GBP: '£',
-  AUD: 'A$',
-  CAD: 'C$',
-  SGD: 'S$',
-  NZD: 'NZ$',
-};
-
-export const mockProjects: Project[] = [
-  {
-    id: '1',
-    title: 'E-commerce Platform',
-    description: 'A fully functional e-commerce platform built with React and Node.js.',
-    tags: ['React', 'Node.js', 'MongoDB'],
-    github_link: 'https://github.com/example/ecommerce',
-    image: 'https://images.pexels.com/photos/230544/pexels-photo-230544.jpeg?auto=compress&cs=tinysrgb&h=750&w=1260',
-    price: 99,
-    status: 'Available',
-    user_id: '1',
-    domain: 'Computer Science Engineering (CSE)',
-    files: ['project-files.zip'],
-  },
-  {
-    id: '2',
-    title: 'Social Media Dashboard',
-    description: 'Monitor your social media presence with this beautiful dashboard.',
-    tags: ['React', 'Firebase', 'Chart.js'],
-    github_link: 'https://github.com/example/social-dashboard',
-    image: 'https://images.pexels.com/photos/844124/pexels-photo-844124.jpeg?auto=compress&cs=tinysrgb&h=750&w=1260',
-    price: 49,
-    status: 'Available',
-    user_id: '1',
-    domain: 'Information Technology (IT)',
-    files: ['dashboard-source.zip'],
-  },
-  {
-    id: '3',
-    title: 'Task Management App',
-    description: 'Keep track of your tasks with this beautiful Kanban-style application.',
-    tags: ['Vue.js', 'Express', 'PostgreSQL'],
-    github_link: 'https://github.com/example/task-app',
-    image: 'https://images.pexels.com/photos/7376/startup-photos.jpg?auto=compress&cs=tinysrgb&h=750&w=1260',
-    price: 0,
-    status: 'Available',
-    user_id: '1',
-    domain: 'B.Sc. Computer Science',
-    files: ['task-app.zip'],
-  },
-  {
-    id: '4',
-    title: 'Portfolio Template',
-    description: 'A beautiful, customizable portfolio template for developers.',
-    tags: ['HTML', 'CSS', 'JavaScript'],
-    github_link: 'https://github.com/example/portfolio',
-    image: 'https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg?auto=compress&cs=tinysrgb&h=750&w=1260',
-    price: 19,
-    status: 'Available',
-    user_id: '1',
-    domain: 'B.Sc. Information Technology (IT)',
-    files: ['portfolio-template.zip'],
-  },
-];
-
-export const mockPurchases: Purchase[] = [
-  {
-    id: '1',
-    buyer_id: '2',
-    project_id: '3',
-    timestamp: new Date().toISOString(),
-  },
-];
-
 export const mockCustomProjects: CustomProject[] = [
   {
     id: '1',
     title: 'E-commerce Integration',
-    description: 'Need help integrating Stripe payment gateway',
+    description: 'Need help integrating Stripe payment gateway with existing React application',
     buyerId: '3',
     status: 'Pending',
-    budget: 500
+    budget: 500,
+    domain: 'Web Development',
+    dueDate: '2024-04-01',
+    attachments: ['requirements.pdf'],
+    buyer: mockUsers.find(u => u.id === '3'),
+  },
+  {
+    id: '2',
+    title: 'Machine Learning Model',
+    description: 'Develop a custom ML model for sentiment analysis',
+    buyerId: '3',
+    sellerId: '2',
+    status: 'InProgress',
+    budget: 1200,
+    domain: 'Machine Learning',
+    dueDate: '2024-03-25',
+    attachments: ['dataset.csv', 'requirements.doc'],
+    buyer: mockUsers.find(u => u.id === '3'),
+    seller: mockUsers.find(u => u.id === '2'),
+    internalNotes: 'Model training in progress, initial accuracy: 85%'
   }
 ];
 
@@ -391,71 +338,47 @@ export const api = {
     }
   },
 
-  assignCustomProject: async (projectId: string, sellerId: string, dueDate: string, notes: string): Promise<void> => {
+  getCustomProjects: async (): Promise<CustomProject[]> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockCustomProjects;
+  },
+
+  assignCustomProject: async (projectId: string, sellerId: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     const project = mockCustomProjects.find(p => p.id === projectId);
     if (project) {
       project.sellerId = sellerId;
       project.status = 'Assigned';
-      project.dueDate = dueDate;
-      project.internalNotes = notes;
+      project.seller = mockUsers.find(u => u.id === sellerId);
     }
   },
-  
-  purchaseProject: async (buyerId: string, projectId: string): Promise<Purchase> => {
+
+  submitCustomProject: async (projectId: string, files: string[]): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const newPurchase: Purchase = {
-      id: String(mockPurchases.length + 1),
-      buyer_id: buyerId,
-      project_id: projectId,
-      timestamp: new Date().toISOString(),
-    };
-    
-    mockPurchases.push(newPurchase);
-    
-    const project = mockProjects.find(p => p.id === projectId);
+    const project = mockCustomProjects.find(p => p.id === projectId);
     if (project) {
-      project.status = 'Sold';
+      project.status = 'Submitted';
+      project.submissionFiles = files;
+      project.submissionDate = new Date().toISOString();
     }
-    
-    return newPurchase;
-  },
-  
-  getUserPurchases: async (userId: string): Promise<Purchase[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const purchases = mockPurchases.filter(p => p.buyer_id === userId);
-    
-    return purchases.map(purchase => {
-      const project = mockProjects.find(p => p.id === purchase.project_id);
-      return { ...purchase, project };
-    });
-  },
-  
-  getUserProjects: async (userId: string): Promise<Project[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return mockProjects.filter(p => p.user_id === userId);
-  },
-  
-  hasPurchased: async (userId: string, projectId: string): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return mockPurchases.some(p => p.buyer_id === userId && p.project_id === projectId);
   },
 
-  downloadProject: async (projectId: string): Promise<void> => {
+  approveCustomProject: async (projectId: string, downloadUrl: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const project = mockProjects.find(p => p.id === projectId);
-    if (!project?.files?.length) {
-      throw new Error('No files available for download');
+    const project = mockCustomProjects.find(p => p.id === projectId);
+    if (project) {
+      project.status = 'Delivered';
+      project.downloadUrl = downloadUrl;
+      project.deliveryDate = new Date().toISOString();
     }
-
-    const link = document.createElement('a');
-    link.href = `data:application/zip;base64,UEsDBAoAAAAAAONjiFQAAAAAAAAAAAAAAAA${projectId}`;
-    link.download = project.files[0];
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   },
+
+  getAvailableSellers: async (domain: string): Promise<User[]> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockUsers.filter(u => 
+      u.role === 'Seller' && 
+      u.isDeveloper && 
+      (!domain || u.expertise?.includes(domain))
+    );
+  }
 };
