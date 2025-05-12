@@ -7,6 +7,8 @@ const supabaseKey = 'demo-anon-key';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+export type UserRole = 'Buyer' | 'Seller' | 'Admin';
+
 export type Domain = {
   name: string;
   codingUsage: 'Very High' | 'High' | 'Moderate' | 'Low';
@@ -18,10 +20,12 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role: 'Seller' | 'Buyer';
+  role: UserRole;
   projectUploads: number;
   projectDeletions: number;
   isPremium: boolean;
+  isDeveloper?: boolean;
+  isAdmin?: boolean;
 };
 
 export type Project = {
@@ -32,21 +36,67 @@ export type Project = {
   github_link?: string;
   image: string;
   price: number;
-  status: 'Available' | 'Sold';
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Available' | 'Sold';
   user_id: string;
   domain: string;
   user?: User;
   files?: string[];
+  feedback?: string;
+  approvedBy?: string;
+  approvedAt?: string;
 };
 
-export type Purchase = {
+export type CustomProject = {
   id: string;
-  buyer_id: string;
-  project_id: string;
-  timestamp: string;
-  project?: Project;
-  buyer?: User;
+  title: string;
+  description: string;
+  buyerId: string;
+  sellerId?: string;
+  status: 'Pending' | 'Assigned' | 'InProgress' | 'Submitted' | 'Delivered';
+  budget: number;
+  dueDate?: string;
+  attachments?: string[];
+  internalNotes?: string;
 };
+
+// Mock admin users
+const adminUsers = [
+  { email: 'admin@rise.com', password: 'admin123' },
+  { email: 'moderator@rise.com', password: 'mod123' }
+];
+
+// Mock data
+export const mockUsers: User[] = [
+  { 
+    id: '1', 
+    name: 'John Admin', 
+    email: 'admin@rise.com', 
+    role: 'Admin', 
+    projectUploads: 0, 
+    projectDeletions: 0, 
+    isPremium: true,
+    isAdmin: true 
+  },
+  { 
+    id: '2', 
+    name: 'Jane Developer', 
+    email: 'jane@example.com', 
+    role: 'Seller', 
+    projectUploads: 12, 
+    projectDeletions: 0, 
+    isPremium: true,
+    isDeveloper: true 
+  },
+  { 
+    id: '3', 
+    name: 'Bob Buyer', 
+    email: 'bob@example.com', 
+    role: 'Buyer', 
+    projectUploads: 0, 
+    projectDeletions: 0, 
+    isPremium: false 
+  }
+];
 
 export const domains: Domain[] = [
   { name: 'Computer Science Engineering (CSE)', codingUsage: 'Very High', category: 'Engineering' },
@@ -71,7 +121,6 @@ export const domains: Domain[] = [
   { name: 'B.Sc. Multimedia / Animation', codingUsage: 'Moderate', category: 'Arts & Science' },
 ];
 
-// Fixed exchange rates for different currencies
 export const exchangeRates = {
   USD: 1,
   INR: 100,
@@ -83,7 +132,6 @@ export const exchangeRates = {
   NZD: 1.45,
 };
 
-// Currency symbols for different currencies
 export const currencySymbols = {
   USD: '$',
   INR: '₹',
@@ -94,12 +142,6 @@ export const currencySymbols = {
   SGD: 'S$',
   NZD: 'NZ$',
 };
-
-// Mock data
-export const mockUsers: User[] = [
-  { id: '1', name: 'John Seller', email: 'john@example.com', role: 'Seller', projectUploads: 0, projectDeletions: 0, isPremium: false },
-  { id: '2', name: 'Jane Buyer', email: 'jane@example.com', role: 'Buyer', projectUploads: 0, projectDeletions: 0, isPremium: false },
-];
 
 export const mockProjects: Project[] = [
   {
@@ -165,9 +207,18 @@ export const mockPurchases: Purchase[] = [
   },
 ];
 
-// Mock API functions to simulate database interactions
+export const mockCustomProjects: CustomProject[] = [
+  {
+    id: '1',
+    title: 'E-commerce Integration',
+    description: 'Need help integrating Stripe payment gateway',
+    buyerId: '3',
+    status: 'Pending',
+    budget: 500
+  }
+];
+
 export const api = {
-  // Auth functions
   getCurrentUser: (): User | null => {
     const storedUser = localStorage.getItem('currentUser');
     return storedUser ? JSON.parse(storedUser) : null;
@@ -175,6 +226,15 @@ export const api = {
   
   login: async (email: string, password: string): Promise<User | null> => {
     await new Promise(resolve => setTimeout(resolve, 500));
+    
+    if (adminUsers.some(admin => admin.email === email && admin.password === password)) {
+      const adminUser = mockUsers.find(u => u.email === email);
+      if (adminUser) {
+        localStorage.setItem('currentUser', JSON.stringify(adminUser));
+        return adminUser;
+      }
+    }
+    
     const user = mockUsers.find(u => u.email === email);
     if (user) {
       localStorage.setItem('currentUser', JSON.stringify(user));
@@ -183,8 +243,13 @@ export const api = {
     return null;
   },
   
-  signup: async (name: string, email: string, role: 'Seller' | 'Buyer', password: string): Promise<User | null> => {
+  signup: async (name: string, email: string, role: UserRole, password: string): Promise<User | null> => {
     await new Promise(resolve => setTimeout(resolve, 500));
+    
+    if (role === 'Admin') {
+      throw new Error('Admin accounts cannot be created through signup');
+    }
+    
     const existingUser = mockUsers.find(u => u.email === email);
     if (existingUser) return null;
     
@@ -196,6 +261,7 @@ export const api = {
       projectUploads: 0,
       projectDeletions: 0,
       isPremium: false,
+      isDeveloper: false
     };
     
     mockUsers.push(newUser);
@@ -207,7 +273,7 @@ export const api = {
     localStorage.removeItem('currentUser');
   },
 
-  updateUserRole: async (userId: string, newRole: 'Seller' | 'Buyer'): Promise<void> => {
+  updateUserRole: async (userId: string, newRole: UserRole): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     const user = mockUsers.find(u => u.id === userId);
     if (user) {
@@ -224,8 +290,7 @@ export const api = {
       localStorage.setItem('currentUser', JSON.stringify(user));
     }
   },
-  
-  // Project functions
+
   getProjects: async (filters?: { tag?: string; minPrice?: number; maxPrice?: number; domain?: string }): Promise<Project[]> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     let filtered = [...mockProjects];
@@ -277,7 +342,7 @@ export const api = {
     const newProject: Project = {
       ...project,
       id: String(mockProjects.length + 1),
-      status: 'Available',
+      status: 'Pending',
       files: project.files?.map(f => f.name) || ['project-files.zip'],
     };
     
@@ -304,8 +369,37 @@ export const api = {
     user.projectDeletions++;
     localStorage.setItem('currentUser', JSON.stringify(user));
   },
+
+  approveProject: async (projectId: string, adminId: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const project = mockProjects.find(p => p.id === projectId);
+    if (project) {
+      project.status = 'Approved';
+      project.approvedBy = adminId;
+      project.approvedAt = new Date().toISOString();
+    }
+  },
+
+  rejectProject: async (projectId: string, feedback: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const project = mockProjects.find(p => p.id === projectId);
+    if (project) {
+      project.status = 'Rejected';
+      project.feedback = feedback;
+    }
+  },
+
+  assignCustomProject: async (projectId: string, sellerId: string, dueDate: string, notes: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const project = mockCustomProjects.find(p => p.id === projectId);
+    if (project) {
+      project.sellerId = sellerId;
+      project.status = 'Assigned';
+      project.dueDate = dueDate;
+      project.internalNotes = notes;
+    }
+  },
   
-  // Purchase functions
   purchaseProject: async (buyerId: string, projectId: string): Promise<Purchase> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
