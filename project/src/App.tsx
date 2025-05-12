@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import UploadProject from './pages/UploadProject';
 import Portfolios from './pages/Portfolios';
@@ -33,6 +34,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute requiredRole="Admin">
+                  <AdminDashboard />
                 </ProtectedRoute>
               } 
             />
