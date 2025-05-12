@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, api } from '../lib/supabase';
-import { Octokit } from '@octokit/rest';
+import { User, UserRole, api } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -8,7 +7,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User | null>;
   loginWithGithub: () => Promise<User | null>;
   loginWithGoogle: () => Promise<User | null>;
-  signup: (name: string, email: string, role: 'Seller' | 'Buyer', password: string) => Promise<User | null>;
+  signup: (name: string, email: string, role: UserRole, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
   switchRole: (newRole: 'Seller' | 'Buyer') => Promise<void>;
   githubToken?: string;
@@ -22,7 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [githubToken, setGithubToken] = useState<string>();
 
   useEffect(() => {
-    // Check if user is already logged in
     const currentUser = api.getCurrentUser();
     setUser(currentUser);
     setLoading(false);
@@ -60,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signup = async (name: string, email: string, role: 'Seller' | 'Buyer', password: string) => {
+  const signup = async (name: string, email: string, role: UserRole, password: string) => {
     const newUser = await api.signup(name, email, role, password);
     setUser(newUser);
     return newUser;
