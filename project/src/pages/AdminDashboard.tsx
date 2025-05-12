@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Project, CustomProject, User, api } from '../lib/supabase';
+import { Project, CustomProject, User, api, mockCustomProjects, mockUsers } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   CheckCircle, 
