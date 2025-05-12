@@ -59,18 +59,12 @@ export type CustomProject = {
   internalNotes?: string;
 };
 
-// Mock admin users
-const adminUsers = [
-  { email: 'admin@rise.com', password: 'admin123' },
-  { email: 'moderator@rise.com', password: 'mod123' }
-];
-
 // Mock data
 export const mockUsers: User[] = [
   { 
     id: '1', 
-    name: 'John Admin', 
-    email: 'admin@rise.com', 
+    name: 'System Admin', 
+    email: 'admin@example.com', 
     role: 'Admin', 
     projectUploads: 0, 
     projectDeletions: 0, 
@@ -227,20 +221,28 @@ export const api = {
   login: async (email: string, password: string): Promise<User | null> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    if (adminUsers.some(admin => admin.email === email && admin.password === password)) {
-      const adminUser = mockUsers.find(u => u.email === email);
+    // For demo purposes, any email with admin@example.com pattern will be granted admin access
+    if (email.toLowerCase().includes('admin@example.com')) {
+      const adminUser = mockUsers.find(u => u.role === 'Admin');
       if (adminUser) {
         localStorage.setItem('currentUser', JSON.stringify(adminUser));
         return adminUser;
       }
     }
     
-    const user = mockUsers.find(u => u.email === email);
-    if (user) {
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      return user;
-    }
-    return null;
+    // For demo purposes, allow any email/password combination
+    const demoUser: User = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: email.split('@')[0],
+      email,
+      role: 'Buyer',
+      projectUploads: 0,
+      projectDeletions: 0,
+      isPremium: false
+    };
+    
+    localStorage.setItem('currentUser', JSON.stringify(demoUser));
+    return demoUser;
   },
   
   signup: async (name: string, email: string, role: UserRole, password: string): Promise<User | null> => {
