@@ -5,6 +5,9 @@ import BuyerHeader from './headers/BuyerHeader';
 import SellerHeader from './headers/SellerHeader';
 import DeveloperHeader from './headers/DeveloperHeader';
 import GuestHeader from './headers/GuestHeader';
+import ProjectAdminHeader from './headers/ProjectAdminHeader';
+import PortfolioAdminHeader from './headers/PortfolioAdminHeader';
+import PhDAdminHeader from './headers/PhDAdminHeader';
 
 const Header: React.FC = () => {
   const { user, logout, switchRole } = useAuth();
@@ -31,36 +34,41 @@ const Header: React.FC = () => {
     return <GuestHeader />;
   }
 
-  if (user.role === 'Admin') {
-    return <AdminHeader onLogout={handleLogout} />;
+  // Handle specific admin roles
+  switch (user.role) {
+    case 'ProjectAdmin':
+      return <ProjectAdminHeader onLogout={handleLogout} />;
+    case 'PortfolioAdmin':
+      return <PortfolioAdminHeader onLogout={handleLogout} />;
+    case 'PhDAdmin':
+      return <PhDAdminHeader onLogout={handleLogout} />;
+    case 'Admin':
+      return <AdminHeader onLogout={handleLogout} />;
+    case 'Seller':
+      return (
+        <SellerHeader
+          userName={user.name}
+          onLogout={handleLogout}
+          onSwitchRole={handleRoleSwitch}
+        />
+      );
+    default:
+      if (user.isDeveloper) {
+        return (
+          <DeveloperHeader
+            userName={user.name}
+            onLogout={handleLogout}
+          />
+        );
+      }
+      return (
+        <BuyerHeader 
+          userName={user.name} 
+          onLogout={handleLogout}
+          onSwitchRole={handleRoleSwitch}
+        />
+      );
   }
-
-  if (user.role === 'Seller') {
-    return (
-      <SellerHeader
-        userName={user.name}
-        onLogout={handleLogout}
-        onSwitchRole={handleRoleSwitch}
-      />
-    );
-  }
-
-  if (user.isDeveloper) {
-    return (
-      <DeveloperHeader
-        userName={user.name}
-        onLogout={handleLogout}
-      />
-    );
-  }
-
-  return (
-    <BuyerHeader 
-      userName={user.name} 
-      onLogout={handleLogout}
-      onSwitchRole={handleRoleSwitch}
-    />
-  );
 };
 
 export default Header;
