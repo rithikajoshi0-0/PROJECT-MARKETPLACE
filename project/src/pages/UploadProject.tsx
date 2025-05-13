@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, AlertCircle, Link as LinkIcon, Tag as TagIcon, DollarSign, Image as ImageIcon, FileUp, Github, RefreshCw, GraduationCap, Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +7,7 @@ import Button from '../components/Button';
 import { Octokit } from '@octokit/rest';
 import { useDropzone } from 'react-dropzone';
 import { Document, Page, pdfjs } from 'react-pdf';
+import Modal from 'react-modal';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
@@ -46,8 +47,11 @@ interface PhDFormData extends CommonFormData {
   previewPages: number[];
 }
 
+Modal.setAppElement('#root');
+
 const UploadProject: React.FC = () => {
   const [uploadType, setUploadType] = useState<UploadType>('Project');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [projectData, setProjectData] = useState<ProjectFormData>({
     title: '',
     description: '',
@@ -137,7 +141,7 @@ const UploadProject: React.FC = () => {
       }
 
       await api.createProject(uploadData);
-      navigate('/dashboard');
+      setShowSuccessModal(true);
     } catch (err) {
       console.error(err);
       setError('Failed to upload content');
@@ -146,11 +150,16 @@ const UploadProject: React.FC = () => {
     }
   };
 
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    navigate('/dashboard');
+  };
+
   const renderUploadForm = () => {
     switch (uploadType) {
       case 'Project':
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <div>
               <label className="block text-sm font-medium text-gray-700">Title</label>
               <input
@@ -158,6 +167,7 @@ const UploadProject: React.FC = () => {
                 value={projectData.title}
                 onChange={(e) => setProjectData({ ...projectData, title: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Enter project title"
               />
             </div>
 
@@ -168,6 +178,7 @@ const UploadProject: React.FC = () => {
                 onChange={(e) => setProjectData({ ...projectData, description: e.target.value })}
                 rows={4}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Describe your project"
               />
             </div>
 
@@ -185,6 +196,7 @@ const UploadProject: React.FC = () => {
                         setProjectData({ ...projectData, tags: newTags });
                       }}
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      placeholder="Enter technology"
                     />
                     {index === projectData.tags.length - 1 && (
                       <Button
@@ -200,34 +212,44 @@ const UploadProject: React.FC = () => {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700">GitHub Repository URL</label>
+              <input
+                type="url"
+                value={projectData.github_link}
+                onChange={(e) => setProjectData({ ...projectData, github_link: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="https://github.com/username/repository"
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700">Price ($)</label>
               <input
                 type="number"
                 value={projectData.price}
                 onChange={(e) => setProjectData({ ...projectData, price: Number(e.target.value) })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                min="0"
+                step="0.01"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Delivery Timeline</label>
-              <select
-                value={projectData.deliveryTimeline}
-                onChange={(e) => setProjectData({ ...projectData, deliveryTimeline: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              >
-                <option>Instant Download</option>
-                <option>1-2 weeks</option>
-                <option>2-4 weeks</option>
-                <option>Custom Timeline</option>
-              </select>
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-gray-700">Project Files</label>
-              <div {...getRootProps()} className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+              <div 
+                {...getRootProps()} 
+                className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-primary-500 transition-colors cursor-pointer bg-gray-50"
+              >
                 <input {...getInputProps()} />
-                <p className="text-gray-600">Drag and drop your project files here, or click to select files</p>
+                <div className="space-y-1">
+                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="text-sm text-gray-600">
+                    Drag and drop your project files here, or click to select files
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    (ZIP, RAR, or PDF files up to 50MB)
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -235,7 +257,8 @@ const UploadProject: React.FC = () => {
 
       case 'Portfolio':
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            {/* Portfolio form fields */}
             <div>
               <label className="block text-sm font-medium text-gray-700">Developer Bio</label>
               <textarea
@@ -243,6 +266,7 @@ const UploadProject: React.FC = () => {
                 onChange={(e) => setPortfolioData({ ...portfolioData, developerBio: e.target.value })}
                 rows={4}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Tell us about yourself"
               />
             </div>
 
@@ -260,6 +284,7 @@ const UploadProject: React.FC = () => {
                         setPortfolioData({ ...portfolioData, skills: newSkills });
                       }}
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      placeholder="Enter skill"
                     />
                     {index === portfolioData.skills.length - 1 && (
                       <Button
@@ -275,30 +300,21 @@ const UploadProject: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">LinkedIn URL</label>
-              <input
-                type="url"
-                value={portfolioData.linkedinUrl}
-                onChange={(e) => setPortfolioData({ ...portfolioData, linkedinUrl: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">GitHub URL</label>
-              <input
-                type="url"
-                value={portfolioData.githubUrl}
-                onChange={(e) => setPortfolioData({ ...portfolioData, githubUrl: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Resume</label>
-              <div {...getRootProps()} className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+              <label className="block text-sm font-medium text-gray-700">Portfolio Files</label>
+              <div 
+                {...getRootProps()} 
+                className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-primary-500 transition-colors cursor-pointer bg-gray-50"
+              >
                 <input {...getInputProps()} />
-                <p className="text-gray-600">Upload your resume (PDF format)</p>
+                <div className="space-y-1">
+                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="text-sm text-gray-600">
+                    Upload your portfolio files
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    (PDF or Image files)
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -306,14 +322,16 @@ const UploadProject: React.FC = () => {
 
       case 'PhD Paper':
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            {/* PhD Paper form fields */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Title</label>
+              <label className="block text-sm font-medium text-gray-700">Paper Title</label>
               <input
                 type="text"
                 value={phdData.title}
                 onChange={(e) => setPhdData({ ...phdData, title: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Enter paper title"
               />
             </div>
 
@@ -324,58 +342,26 @@ const UploadProject: React.FC = () => {
                 onChange={(e) => setPhdData({ ...phdData, abstract: e.target.value })}
                 rows={6}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                placeholder="Enter paper abstract"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Domain</label>
-              <input
-                type="text"
-                value={phdData.domain}
-                onChange={(e) => setPhdData({ ...phdData, domain: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">University</label>
-              <input
-                type="text"
-                value={phdData.university}
-                onChange={(e) => setPhdData({ ...phdData, university: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Year of Completion</label>
-              <input
-                type="number"
-                value={phdData.yearCompleted}
-                onChange={(e) => setPhdData({ ...phdData, yearCompleted: Number(e.target.value) })}
-                min="1900"
-                max={new Date().getFullYear()}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={phdData.isPeerReviewed}
-                  onChange={(e) => setPhdData({ ...phdData, isPeerReviewed: e.target.checked })}
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm text-gray-900">Peer Reviewed</span>
-              </label>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Full PDF</label>
-              <div {...getRootProps()} className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
+              <label className="block text-sm font-medium text-gray-700">PDF Upload</label>
+              <div 
+                {...getRootProps()} 
+                className="mt-1 border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-primary-500 transition-colors cursor-pointer bg-gray-50"
+              >
                 <input {...getInputProps()} />
-                <p className="text-gray-600">Upload your PhD paper (PDF format)</p>
+                <div className="space-y-1">
+                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="text-sm text-gray-600">
+                    Upload your PhD paper
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    (PDF format only)
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -431,6 +417,33 @@ const UploadProject: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      <Modal
+        isOpen={showSuccessModal}
+        onRequestClose={handleCloseSuccessModal}
+        className="max-w-md mx-auto mt-20 bg-white rounded-lg shadow-xl"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-75"
+      >
+        <div className="p-6">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Upload Successful!</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Your {uploadType.toLowerCase()} has been submitted for review. Our admin team will verify it within 24 hours.
+            </p>
+            <div className="mt-6">
+              <Button onClick={handleCloseSuccessModal} fullWidth>
+                Return to Dashboard
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
