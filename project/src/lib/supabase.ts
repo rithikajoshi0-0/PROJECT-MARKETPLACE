@@ -4,10 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 // In a production app, these would come from environment variables
 const supabaseUrl = 'https://example.supabase.co';
 const supabaseKey = 'demo-anon-key';
+const adminApiBaseUrl = import.meta.env.VITE_ADMIN_API_BASE_URL || 'https://admin.riseplatform.com/api';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-export type UserRole = 'Buyer' | 'Seller' | 'Admin' | 'ProjectAdmin' | 'PortfolioAdmin' | 'PhDAdmin';
+export type UserRole = 'Buyer' | 'Seller';
 
 export type Domain = {
   name: string;
@@ -15,7 +16,6 @@ export type Domain = {
   category: 'Engineering' | 'Arts & Science';
 };
 
-// Types based on the database schema
 export type User = {
   id: string;
   name: string;
@@ -25,7 +25,6 @@ export type User = {
   projectDeletions: number;
   isPremium: boolean;
   isDeveloper?: boolean;
-  isAdmin?: boolean;
   expertise?: string[];
   rating?: number;
   completedProjects?: number;
@@ -45,8 +44,6 @@ export type Project = {
   user?: User;
   files?: string[];
   feedback?: string;
-  approvedBy?: string;
-  approvedAt?: string;
 };
 
 export type CustomProject = {
@@ -60,48 +57,15 @@ export type CustomProject = {
   dueDate?: string;
   domain: string;
   attachments?: string[];
-  internalNotes?: string;
   buyer?: User;
   seller?: User;
   submissionFiles?: string[];
   submissionDate?: string;
-  reviewNotes?: string;
-  deliveryDate?: string;
   downloadUrl?: string;
 };
 
 // Mock data
 export const mockUsers: User[] = [
-  { 
-    id: '1', 
-    name: 'Project Admin', 
-    email: 'project.admin@rise.internal', 
-    role: 'ProjectAdmin', 
-    projectUploads: 0, 
-    projectDeletions: 0, 
-    isPremium: true,
-    isAdmin: true 
-  },
-  { 
-    id: '2', 
-    name: 'Portfolio Admin', 
-    email: 'portfolio.admin@rise.internal', 
-    role: 'PortfolioAdmin', 
-    projectUploads: 0, 
-    projectDeletions: 0, 
-    isPremium: true,
-    isAdmin: true 
-  },
-  { 
-    id: '3', 
-    name: 'PhD Admin', 
-    email: 'phd.admin@rise.internal', 
-    role: 'PhDAdmin', 
-    projectUploads: 0, 
-    projectDeletions: 0, 
-    isPremium: true,
-    isAdmin: true 
-  },
   { 
     id: '2', 
     name: 'Jane Developer', 
@@ -149,7 +113,6 @@ export const domains: Domain[] = [
   { name: 'B.Sc. Multimedia / Animation', codingUsage: 'Moderate', category: 'Arts & Science' },
 ];
 
-// Add mockProjects export
 export const mockProjects: Project[] = [
   {
     id: '1',
@@ -201,9 +164,84 @@ export const mockCustomProjects: CustomProject[] = [
     attachments: ['dataset.csv', 'requirements.doc'],
     buyer: mockUsers.find(u => u.id === '3'),
     seller: mockUsers.find(u => u.id === '2'),
-    internalNotes: 'Model training in progress, initial accuracy: 85%'
   }
 ];
+
+// Admin API integration
+const adminApi = {
+  async request(endpoint: string, options: RequestInit = {}) {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+      ...options.headers,
+    };
+
+    const response = await fetch(`${adminApiBaseUrl}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Admin API Error: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  async submitProjectForReview(project: Project) {
+    return this.request('/project-review', {
+      method: 'POST',
+      body: JSON.stringify({
+        projectId: project.id,
+        sellerId: project.user_id,
+        description: project.description,
+        tags: project.tags,
+        category: project.domain,
+        fileLink: project.files?.[0],
+        uploadDate: new Date().toISOString()
+      })
+    });
+  },
+
+  async submitPortfolioForReview(portfolio: Project) {
+    return this.request('/portfolio-review', {
+      method: 'POST',
+      body: JSON.stringify({
+        portfolioId: portfolio.id,
+        sellerId: portfolio.user_id,
+        images: portfolio.files,
+        techStack: portfolio.tags,
+        uploadDate: new Date().toISOString()
+      })
+    });
+  },
+
+  async submitPhDForReview(paper: Project) {
+    return this.request('/phd-review', {
+      method: 'POST',
+      body: JSON.stringify({
+        paperId: paper.id,
+        abstract: paper.description,
+        domain: paper.domain,
+        fileLink: paper.files?.[0],
+        uploadDate: new Date().toISOString()
+      })
+    });
+  },
+
+  async submitCustomProjectResponse(projectId: string, developerId: string, files: string[], notes?: string) {
+    return this.request('/custom-project-review', {
+      method: 'POST',
+      body: JSON.stringify({
+        projectId,
+        developerId,
+        fileLinks: files,
+        notes,
+        submissionDate: new Date().toISOString()
+      })
+    });
+  }
+};
 
 export const api = {
   getCurrentUser: (): User | null => {
@@ -214,17 +252,7 @@ export const api = {
   login: async (email: string, password: string): Promise<User | null> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Check for admin logins using internal email patterns
-    if (email.endsWith('@rise.internal')) {
-      const adminUser = mockUsers.find(u => u.email === email.toLowerCase());
-      if (adminUser && password === 'admin123!@#') { // In production, use proper password hashing
-        localStorage.setItem('currentUser', JSON.stringify(adminUser));
-        return adminUser;
-      }
-      return null;
-    }
-    
-    // Regular user login logic remains unchanged
+    // Regular user login logic
     const demoUser: User = {
       id: Math.random().toString(36).substr(2, 9),
       name: email.split('@')[0],
@@ -241,10 +269,6 @@ export const api = {
   
   signup: async (name: string, email: string, role: UserRole, password: string): Promise<User | null> => {
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    if (role === 'Admin') {
-      throw new Error('Admin accounts cannot be created through signup');
-    }
     
     const existingUser = mockUsers.find(u => u.email === email);
     if (existingUser) return null;
@@ -345,6 +369,20 @@ export const api = {
     mockProjects.push(newProject);
     user.projectUploads++;
     localStorage.setItem('currentUser', JSON.stringify(user));
+
+    // Submit to admin API based on project type
+    try {
+      if (project.domain.includes('Portfolio')) {
+        await adminApi.submitPortfolioForReview(newProject);
+      } else if (project.domain.includes('PhD')) {
+        await adminApi.submitPhDForReview(newProject);
+      } else {
+        await adminApi.submitProjectForReview(newProject);
+      }
+    } catch (error) {
+      console.error('Failed to submit for review:', error);
+    }
+
     return newProject;
   },
 
@@ -366,57 +404,25 @@ export const api = {
     localStorage.setItem('currentUser', JSON.stringify(user));
   },
 
-  approveProject: async (projectId: string, adminId: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const project = mockProjects.find(p => p.id === projectId);
-    if (project) {
-      project.status = 'Approved';
-      project.approvedBy = adminId;
-      project.approvedAt = new Date().toISOString();
-    }
-  },
-
-  rejectProject: async (projectId: string, feedback: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const project = mockProjects.find(p => p.id === projectId);
-    if (project) {
-      project.status = 'Rejected';
-      project.feedback = feedback;
-    }
-  },
-
   getCustomProjects: async (): Promise<CustomProject[]> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     return mockCustomProjects;
   },
 
-  assignCustomProject: async (projectId: string, sellerId: string): Promise<void> => {
+  submitCustomProject: async (projectId: string, files: string[], notes?: string): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     const project = mockCustomProjects.find(p => p.id === projectId);
-    if (project) {
-      project.sellerId = sellerId;
-      project.status = 'Assigned';
-      project.seller = mockUsers.find(u => u.id === sellerId);
-    }
-  },
-
-  submitCustomProject: async (projectId: string, files: string[]): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const project = mockCustomProjects.find(p => p.id === projectId);
-    if (project) {
+    if (project && project.sellerId) {
       project.status = 'Submitted';
       project.submissionFiles = files;
       project.submissionDate = new Date().toISOString();
-    }
-  },
 
-  approveCustomProject: async (projectId: string, downloadUrl: string): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const project = mockCustomProjects.find(p => p.id === projectId);
-    if (project) {
-      project.status = 'Delivered';
-      project.downloadUrl = downloadUrl;
-      project.deliveryDate = new Date().toISOString();
+      // Submit to admin API
+      try {
+        await adminApi.submitCustomProjectResponse(projectId, project.sellerId, files, notes);
+      } catch (error) {
+        console.error('Failed to submit custom project for review:', error);
+      }
     }
   },
 
