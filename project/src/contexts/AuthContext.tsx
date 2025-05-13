@@ -21,15 +21,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [githubToken, setGithubToken] = useState<string>();
 
   useEffect(() => {
-    const currentUser = api.getCurrentUser();
-    setUser(currentUser);
-    setLoading(false);
+    const initAuth = async () => {
+      try {
+        const currentUser = await api.getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const loggedInUser = await api.login(email, password);
-    setUser(loggedInUser);
-    return loggedInUser;
+    try {
+      const loggedInUser = await api.login(email, password);
+      setUser(loggedInUser);
+      return loggedInUser;
+    } catch (error) {
+      console.error('Login error:', error);
+      return null;
+    }
   };
 
   const loginWithGithub = async () => {
@@ -59,22 +74,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = async (name: string, email: string, role: UserRole, password: string) => {
-    const newUser = await api.signup(name, email, role, password);
-    setUser(newUser);
-    return newUser;
+    try {
+      const newUser = await api.signup(name, email, role, password);
+      setUser(newUser);
+      return newUser;
+    } catch (error) {
+      console.error('Signup error:', error);
+      return null;
+    }
   };
 
   const logout = async () => {
-    await api.logout();
-    setUser(null);
-    setGithubToken(undefined);
+    try {
+      await api.logout();
+      setUser(null);
+      setGithubToken(undefined);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const switchRole = async (newRole: 'Seller' | 'Buyer') => {
     if (!user) return;
-    const updatedUser = { ...user, role: newRole };
-    await api.updateUserRole(user.id, newRole);
-    setUser(updatedUser);
+    try {
+      const updatedUser = { ...user, role: newRole };
+      await api.updateUserRole(user.id, newRole);
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('Role switch error:', error);
+    }
   };
 
   return (
