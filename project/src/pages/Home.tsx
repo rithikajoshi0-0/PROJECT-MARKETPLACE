@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Project, api } from '../lib/supabase';
+import { Project, api, mockProjects } from '../lib/supabase';
 import { Search } from 'lucide-react';
 import ProjectCard from '../components/ProjectCard';
 import FilterSidebar from '../components/FilterSidebar';
@@ -17,26 +17,37 @@ const Home: React.FC = () => {
     // Detect user's region and set currency
     const detectUserRegion = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-region`, {
-          headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-        });
+        // Default to USD if region detection fails
+        const defaultCurrency = { currency: 'USD', country: 'US', region: 'Unknown' };
         
-        if (!response.ok) {
-          throw new Error('Region detection failed');
-        }
+        try {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-region`, {
+            headers: {
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (!response.ok) {
+            throw new Error('Region detection failed');
+          }
 
-        const data = await response.json();
-        const currency = data.currency || 'USD';
-        setUserCurrency(currency);
-        
-        // For demo purposes, using fixed exchange rates
-        const rates = { USD: 1, EUR: 0.85, GBP: 0.73, INR: 83 };
-        setExchangeRate(rates[currency] || 1);
+          const data = await response.json();
+          const currency = data.currency || defaultCurrency.currency;
+          setUserCurrency(currency);
+          
+          // For demo purposes, using fixed exchange rates
+          const rates = { USD: 1, EUR: 0.85, GBP: 0.73, INR: 83 };
+          setExchangeRate(rates[currency] || 1);
+        } catch (error) {
+          console.error('Error detecting region:', error);
+          // Fallback to default values
+          setUserCurrency(defaultCurrency.currency);
+          setExchangeRate(1);
+        }
       } catch (error) {
-        console.error('Error detecting region:', error);
-        // Fallback to USD
+        console.error('Error in region detection:', error);
+        // Final fallback
         setUserCurrency('USD');
         setExchangeRate(1);
       }
@@ -60,6 +71,17 @@ const Home: React.FC = () => {
         setAvailableTags(Array.from(tags));
       } catch (error) {
         console.error('Error fetching projects:', error);
+        // Use mock data as fallback
+        setProjects(mockProjects);
+        setFilteredProjects(mockProjects);
+        
+        const tags = new Set<string>();
+        mockProjects.forEach((project) => {
+          project.tags.forEach((tag) => {
+            tags.add(tag);
+          });
+        });
+        setAvailableTags(Array.from(tags));
       } finally {
         setLoading(false);
       }
