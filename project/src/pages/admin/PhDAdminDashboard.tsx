@@ -1,23 +1,56 @@
-import React, { useState } from 'react';
-import { Project } from '../../lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { Project, api } from '../../lib/supabase';
 import { CheckCircle, XCircle, MessageSquare, AlertCircle, GraduationCap } from 'lucide-react';
 import Button from '../../components/Button';
 
-interface PhDAdminDashboardProps {
-  papers: Project[];
-  onApprove: (paperId: string) => Promise<void>;
-  onReject: (paperId: string, feedback: string) => Promise<void>;
-}
-
-const PhDAdminDashboard: React.FC<PhDAdminDashboardProps> = ({
-  papers,
-  onApprove,
-  onReject
-}) => {
+const PhDAdminDashboard: React.FC = () => {
+  const [papers, setPapers] = useState<Project[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Project | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const pendingPapers = papers.filter(p => p.status === 'Pending' && p.type === 'phd');
+  useEffect(() => {
+    const fetchPapers = async () => {
+      try {
+        const allProjects = await api.getProjects();
+        setPapers(allProjects.filter(p => p.status === 'Pending'));
+      } catch (error) {
+        console.error('Error fetching papers:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPapers();
+  }, []);
+
+  const handleApprove = async (paperId: string) => {
+    try {
+      await api.approveProject(paperId, 'admin');
+      setPapers(papers.filter(p => p.id !== paperId));
+    } catch (error) {
+      console.error('Error approving paper:', error);
+    }
+  };
+
+  const handleReject = async (paperId: string, feedback: string) => {
+    try {
+      await api.rejectProject(paperId, feedback);
+      setPapers(papers.filter(p => p.id !== paperId));
+      setSelectedPaper(null);
+      setFeedback('');
+    } catch (error) {
+      console.error('Error rejecting paper:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -25,7 +58,7 @@ const PhDAdminDashboard: React.FC<PhDAdminDashboardProps> = ({
         <h2 className="text-lg font-medium text-gray-900">PhD Paper Reviews</h2>
       </div>
       <div className="divide-y divide-gray-200">
-        {pendingPapers.map(paper => (
+        {papers.map(paper => (
           <div key={paper.id} className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -49,7 +82,7 @@ const PhDAdminDashboard: React.FC<PhDAdminDashboardProps> = ({
                 <Button
                   variant="success"
                   size="sm"
-                  onClick={() => onApprove(paper.id)}
+                  onClick={() => handleApprove(paper.id)}
                   leftIcon={<CheckCircle className="h-4 w-4" />}
                 >
                   Approve
@@ -75,7 +108,7 @@ const PhDAdminDashboard: React.FC<PhDAdminDashboardProps> = ({
           </div>
         ))}
 
-        {pendingPapers.length === 0 && (
+        {papers.length === 0 && (
           <div className="p-6 text-center text-gray-500">
             No pending PhD papers to review
           </div>
@@ -114,9 +147,7 @@ const PhDAdminDashboard: React.FC<PhDAdminDashboardProps> = ({
                 <Button
                   variant="danger"
                   onClick={() => {
-                    onReject(selectedPaper.id, feedback);
-                    setSelectedPaper(null);
-                    setFeedback('');
+                    handleReject(selectedPaper.id, feedback);
                   }}
                 >
                   Reject
