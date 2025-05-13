@@ -7,7 +7,7 @@ const supabaseKey = 'demo-anon-key';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-export type UserRole = 'Buyer' | 'Seller' | 'Admin';
+export type UserRole = 'Buyer' | 'Seller' | 'Admin' | 'ProjectAdmin' | 'PortfolioAdmin' | 'PhDAdmin';
 
 export type Domain = {
   name: string;
@@ -74,9 +74,29 @@ export type CustomProject = {
 export const mockUsers: User[] = [
   { 
     id: '1', 
-    name: 'System Admin', 
-    email: 'admin@example.com', 
-    role: 'Admin', 
+    name: 'Project Admin', 
+    email: 'project.admin@rise.internal', 
+    role: 'ProjectAdmin', 
+    projectUploads: 0, 
+    projectDeletions: 0, 
+    isPremium: true,
+    isAdmin: true 
+  },
+  { 
+    id: '2', 
+    name: 'Portfolio Admin', 
+    email: 'portfolio.admin@rise.internal', 
+    role: 'PortfolioAdmin', 
+    projectUploads: 0, 
+    projectDeletions: 0, 
+    isPremium: true,
+    isAdmin: true 
+  },
+  { 
+    id: '3', 
+    name: 'PhD Admin', 
+    email: 'phd.admin@rise.internal', 
+    role: 'PhDAdmin', 
     projectUploads: 0, 
     projectDeletions: 0, 
     isPremium: true,
@@ -129,6 +149,32 @@ export const domains: Domain[] = [
   { name: 'B.Sc. Multimedia / Animation', codingUsage: 'Moderate', category: 'Arts & Science' },
 ];
 
+// Add mockProjects export
+export const mockProjects: Project[] = [
+  {
+    id: '1',
+    title: 'E-commerce Platform',
+    description: 'A full-featured e-commerce platform built with React and Node.js',
+    tags: ['React', 'Node.js', 'MongoDB'],
+    image: 'https://example.com/ecommerce.jpg',
+    price: 299,
+    status: 'Available',
+    user_id: '2',
+    domain: 'Web Development'
+  },
+  {
+    id: '2',
+    title: 'Machine Learning Model',
+    description: 'Sentiment analysis model using Python and TensorFlow',
+    tags: ['Python', 'TensorFlow', 'ML'],
+    image: 'https://example.com/ml-model.jpg',
+    price: 499,
+    status: 'Available',
+    user_id: '2',
+    domain: 'Machine Learning'
+  }
+];
+
 export const mockCustomProjects: CustomProject[] = [
   {
     id: '1',
@@ -168,16 +214,17 @@ export const api = {
   login: async (email: string, password: string): Promise<User | null> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // For demo purposes, any email with admin@example.com pattern will be granted admin access
-    if (email.toLowerCase().includes('admin@example.com')) {
-      const adminUser = mockUsers.find(u => u.role === 'Admin');
-      if (adminUser) {
+    // Check for admin logins using internal email patterns
+    if (email.endsWith('@rise.internal')) {
+      const adminUser = mockUsers.find(u => u.email === email.toLowerCase());
+      if (adminUser && password === 'admin123!@#') { // In production, use proper password hashing
         localStorage.setItem('currentUser', JSON.stringify(adminUser));
         return adminUser;
       }
+      return null;
     }
     
-    // For demo purposes, allow any email/password combination
+    // Regular user login logic remains unchanged
     const demoUser: User = {
       id: Math.random().toString(36).substr(2, 9),
       name: email.split('@')[0],
