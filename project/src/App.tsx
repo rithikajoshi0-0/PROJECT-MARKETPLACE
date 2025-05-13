@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -7,9 +7,6 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
-import ProjectAdminDashboard from './pages/admin/ProjectAdminDashboard';
-import PortfolioAdminDashboard from './pages/admin/PortfolioAdminDashboard';
-import PhDAdminDashboard from './pages/admin/PhDAdminDashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import UploadProject from './pages/UploadProject';
 import Portfolios from './pages/Portfolios';
@@ -32,7 +29,7 @@ function App() {
             <Route path="/phd-projects" element={<PhDProjects />} />
             <Route path="/custom-projects" element={<CustomProjects />} />
             
-            {/* Regular user dashboard */}
+            {/* Protected routes */}
             <Route 
               path="/dashboard" 
               element={
@@ -41,45 +38,11 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-
-            {/* Admin routes with role-specific protection */}
-            <Route 
-              path="/admin"
-              element={
-                <ProtectedRoute requiredRole="Admin">
-                  <Navigate to="/admin/projects" replace />
-                </ProtectedRoute>
-              }
-            />
-            <Route 
-              path="/admin/projects" 
-              element={
-                <ProtectedRoute requiredRole="ProjectAdmin">
-                  <ProjectAdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/portfolios" 
-              element={
-                <ProtectedRoute requiredRole="PortfolioAdmin">
-                  <PortfolioAdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/phd" 
-              element={
-                <ProtectedRoute requiredRole="PhDAdmin">
-                  <PhDAdminDashboard />
-                </ProtectedRoute>
-              } 
-            />
             
             <Route 
               path="/upload" 
               element={
-                <ProtectedRoute requiredRole="Seller">
+                <ProtectedRoute>
                   <UploadProject />
                 </ProtectedRoute>
               } 
