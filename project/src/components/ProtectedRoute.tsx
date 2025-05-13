@@ -1,10 +1,11 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { UserRole } from '../lib/supabase';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'Seller' | 'Buyer';
+  requiredRole?: UserRole;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
@@ -22,10 +23,27 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/" />;
   }
 
   if (requiredRole && user.role !== requiredRole) {
+    // Redirect non-admin users to home
+    if (requiredRole.includes('Admin') && !user.isAdmin) {
+      return <Navigate to="/" />;
+    }
+    // Redirect wrong type of admin to their correct dashboard
+    if (user.isAdmin) {
+      switch (user.role) {
+        case 'ProjectAdmin':
+          return <Navigate to="/admin/projects" />;
+        case 'PortfolioAdmin':
+          return <Navigate to="/admin/portfolios" />;
+        case 'PhDAdmin':
+          return <Navigate to="/admin/phd" />;
+        default:
+          return <Navigate to="/" />;
+      }
+    }
     return <Navigate to="/" />;
   }
 
