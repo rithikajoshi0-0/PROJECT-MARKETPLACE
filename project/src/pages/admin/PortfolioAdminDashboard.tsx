@@ -1,23 +1,56 @@
-import React, { useState } from 'react';
-import { Project } from '../../lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { Project, api } from '../../lib/supabase';
 import { CheckCircle, XCircle, MessageSquare, AlertCircle, Briefcase } from 'lucide-react';
 import Button from '../../components/Button';
 
-interface PortfolioAdminDashboardProps {
-  portfolios: Project[];
-  onApprove: (portfolioId: string) => Promise<void>;
-  onReject: (portfolioId: string, feedback: string) => Promise<void>;
-}
-
-const PortfolioAdminDashboard: React.FC<PortfolioAdminDashboardProps> = ({
-  portfolios,
-  onApprove,
-  onReject
-}) => {
+const PortfolioAdminDashboard: React.FC = () => {
+  const [portfolios, setPortfolios] = useState<Project[]>([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState<Project | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const pendingPortfolios = portfolios.filter(p => p.status === 'Pending' && p.type === 'portfolio');
+  useEffect(() => {
+    const fetchPortfolios = async () => {
+      try {
+        const allProjects = await api.getProjects();
+        setPortfolios(allProjects.filter(p => p.status === 'Pending'));
+      } catch (error) {
+        console.error('Error fetching portfolios:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPortfolios();
+  }, []);
+
+  const handleApprove = async (portfolioId: string) => {
+    try {
+      await api.approveProject(portfolioId, 'admin');
+      setPortfolios(portfolios.filter(p => p.id !== portfolioId));
+    } catch (error) {
+      console.error('Error approving portfolio:', error);
+    }
+  };
+
+  const handleReject = async (portfolioId: string, feedback: string) => {
+    try {
+      await api.rejectProject(portfolioId, feedback);
+      setPortfolios(portfolios.filter(p => p.id !== portfolioId));
+      setSelectedPortfolio(null);
+      setFeedback('');
+    } catch (error) {
+      console.error('Error rejecting portfolio:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -25,7 +58,7 @@ const PortfolioAdminDashboard: React.FC<PortfolioAdminDashboardProps> = ({
         <h2 className="text-lg font-medium text-gray-900">Portfolio Reviews</h2>
       </div>
       <div className="divide-y divide-gray-200">
-        {pendingPortfolios.map(portfolio => (
+        {portfolios.map(portfolio => (
           <div key={portfolio.id} className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -49,7 +82,7 @@ const PortfolioAdminDashboard: React.FC<PortfolioAdminDashboardProps> = ({
                 <Button
                   variant="success"
                   size="sm"
-                  onClick={() => onApprove(portfolio.id)}
+                  onClick={() => handleApprove(portfolio.id)}
                   leftIcon={<CheckCircle className="h-4 w-4" />}
                 >
                   Approve
@@ -75,7 +108,7 @@ const PortfolioAdminDashboard: React.FC<PortfolioAdminDashboardProps> = ({
           </div>
         ))}
 
-        {pendingPortfolios.length === 0 && (
+        {portfolios.length === 0 && (
           <div className="p-6 text-center text-gray-500">
             No pending portfolios to review
           </div>
@@ -114,9 +147,7 @@ const PortfolioAdminDashboard: React.FC<PortfolioAdminDashboardProps> = ({
                 <Button
                   variant="danger"
                   onClick={() => {
-                    onReject(selectedPortfolio.id, feedback);
-                    setSelectedPortfolio(null);
-                    setFeedback('');
+                    handleReject(selectedPortfolio.id, feedback);
                   }}
                 >
                   Reject
