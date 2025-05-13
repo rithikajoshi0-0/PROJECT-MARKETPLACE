@@ -1,23 +1,56 @@
-import React, { useState } from 'react';
-import { Project } from '../../lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { Project, api } from '../../lib/supabase';
 import { CheckCircle, XCircle, MessageSquare, AlertCircle } from 'lucide-react';
 import Button from '../../components/Button';
 
-interface ProjectAdminDashboardProps {
-  projects: Project[];
-  onApprove: (projectId: string) => Promise<void>;
-  onReject: (projectId: string, feedback: string) => Promise<void>;
-}
-
-const ProjectAdminDashboard: React.FC<ProjectAdminDashboardProps> = ({
-  projects,
-  onApprove,
-  onReject
-}) => {
+const ProjectAdminDashboard: React.FC = () => {
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const pendingProjects = projects.filter(p => p.status === 'Pending' && p.type === 'project');
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const allProjects = await api.getProjects();
+        setProjects(allProjects.filter(p => p.status === 'Pending'));
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  const handleApprove = async (projectId: string) => {
+    try {
+      await api.approveProject(projectId, 'admin');
+      setProjects(projects.filter(p => p.id !== projectId));
+    } catch (error) {
+      console.error('Error approving project:', error);
+    }
+  };
+
+  const handleReject = async (projectId: string, feedback: string) => {
+    try {
+      await api.rejectProject(projectId, feedback);
+      setProjects(projects.filter(p => p.id !== projectId));
+      setSelectedProject(null);
+      setFeedback('');
+    } catch (error) {
+      console.error('Error rejecting project:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -25,7 +58,7 @@ const ProjectAdminDashboard: React.FC<ProjectAdminDashboardProps> = ({
         <h2 className="text-lg font-medium text-gray-900">Project Reviews</h2>
       </div>
       <div className="divide-y divide-gray-200">
-        {pendingProjects.map(project => (
+        {projects.map(project => (
           <div key={project.id} className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -46,7 +79,7 @@ const ProjectAdminDashboard: React.FC<ProjectAdminDashboardProps> = ({
                 <Button
                   variant="success"
                   size="sm"
-                  onClick={() => onApprove(project.id)}
+                  onClick={() => handleApprove(project.id)}
                   leftIcon={<CheckCircle className="h-4 w-4" />}
                 >
                   Approve
@@ -72,7 +105,7 @@ const ProjectAdminDashboard: React.FC<ProjectAdminDashboardProps> = ({
           </div>
         ))}
 
-        {pendingProjects.length === 0 && (
+        {projects.length === 0 && (
           <div className="p-6 text-center text-gray-500">
             No pending projects to review
           </div>
@@ -111,9 +144,7 @@ const ProjectAdminDashboard: React.FC<ProjectAdminDashboardProps> = ({
                 <Button
                   variant="danger"
                   onClick={() => {
-                    onReject(selectedProject.id, feedback);
-                    setSelectedProject(null);
-                    setFeedback('');
+                    handleReject(selectedProject.id, feedback);
                   }}
                 >
                   Reject
