@@ -7,7 +7,9 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
-import AdminDashboard from './pages/AdminDashboard';
+import ProjectAdminDashboard from './pages/admin/ProjectAdminDashboard';
+import PortfolioAdminDashboard from './pages/admin/PortfolioAdminDashboard';
+import PhDAdminDashboard from './pages/admin/PhDAdminDashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import UploadProject from './pages/UploadProject';
 import Portfolios from './pages/Portfolios';
@@ -38,10 +40,26 @@ function App() {
               } 
             />
             <Route 
-              path="/admin" 
+              path="/admin/projects" 
               element={
-                <ProtectedRoute requiredRole="Admin">
-                  <AdminDashboard />
+                <ProtectedRoute requiredRole="ProjectAdmin">
+                  <ProjectAdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/portfolios" 
+              element={
+                <ProtectedRoute requiredRole="PortfolioAdmin">
+                  <PortfolioAdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/phd" 
+              element={
+                <ProtectedRoute requiredRole="PhDAdmin">
+                  <PhDAdminDashboard />
                 </ProtectedRoute>
               } 
             />
@@ -61,4 +79,4 @@ function App() {
   );
 }
 
-export default App;
+export default App
