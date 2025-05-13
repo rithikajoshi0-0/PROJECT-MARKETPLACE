@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -31,6 +31,8 @@ function App() {
             <Route path="/portfolios" element={<Portfolios />} />
             <Route path="/phd-projects" element={<PhDProjects />} />
             <Route path="/custom-projects" element={<CustomProjects />} />
+            
+            {/* Regular user dashboard */}
             <Route 
               path="/dashboard" 
               element={
@@ -38,6 +40,16 @@ function App() {
                   <Dashboard />
                 </ProtectedRoute>
               } 
+            />
+
+            {/* Admin routes with role-specific protection */}
+            <Route 
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRole="Admin">
+                  <Navigate to="/admin/projects" replace />
+                </ProtectedRoute>
+              }
             />
             <Route 
               path="/admin/projects" 
@@ -63,6 +75,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            
             <Route 
               path="/upload" 
               element={
@@ -79,4 +92,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
